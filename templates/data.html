@@ -1,0 +1,135 @@
+<html>
+<head>
+<title> Stock Data summary page</title>
+<meta http-equiv="Cache-Control" content="no-store" />
+<meta http-equiv="refresh" content="300" />
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script type="text/javascript">
+function drawTable(data) {
+
+  // Get Table headers and print
+  var head = $("<tr />")
+  $("#DataStrategy").append(head);
+  for (var j = 0; j < Object.keys(data[0]).length; j++) {
+    head.append($("<th>" + Object.keys(data[0])[j] + "</th>"));
+  }
+  // Print the content of rows in DataTable
+  for (var i = 0; i < data.length; i++) {
+    drawRow(data[i]);
+  }
+}
+
+function drawRow(rowData) {
+  var row = $("<tr />")
+  $("#DataStrategy").append(row);
+  row.append($("<td>" + rowData["Symbol"] + "</td>"));
+  row.append($("<td>" + rowData["Datetime"] + "</td>"));
+  row.append($("<td>" + rowData["Open"] + "</td>"));
+  row.append($("<td>" + rowData["High"] + "</td>"));
+  row.append($("<td>" + rowData["Low"] + "</td>"));
+  row.append($("<td>" + rowData["Close"] + "</td>"));
+  var cellcolor = "#9af764";
+  if ( rowData["Crossover"]  < 0 ) cellcolor = "#fc5a50";
+  row.append($("<td style='background-color:" + cellcolor + "'>" + rowData["Crossover"] + "</td>"));
+}
+
+function drawPatternTable(data) {
+
+  // Get Table headers and print
+  var head = $("<tr />")
+  $("#DataPattern").append(head);
+  head.append($("<th>Symbol</th>"));
+  head.append($("<th>Day_High</th>"));
+  head.append($("<th>Day_Low</th>"));
+  head.append($("<th>LastRow_High</th>"));
+  head.append($("<th>LastRow_Low</th>"));
+  head.append($("<th>LastRec_Range</th>"));
+  
+  var currow = data[0];
+  var row = $("<tr />")
+  $("#DataPattern").append(row);
+  $("#LastRecTime").html('Last Record process time: ' + currow["Datetime"]);
+  // Print the content of rows in DataTable
+  for (var i = 0; i < data.length; i++) {
+    drawPatternRow(data[i]);
+  }
+
+}
+
+function drawPatternRow(rowData) {
+  var row = $("<tr />")
+  $("#DataPattern").append(row);
+  row.append($("<td>" + rowData["Symbol"] + "</td>"));
+  row.append($("<td>" + rowData["Day_High"] + "</td>"));
+  row.append($("<td>" + rowData["Day_Low"] + "</td>"));
+  row.append($("<td>" + rowData["LastRow_High"] + "</td>"));
+  row.append($("<td>" + rowData["LastRow_Low"] + "</td>"));  
+  var cellcolor = "white";
+  var cellvalue = "InRange";
+  parseFloat(rowData["Day_High"])
+  if ( parseFloat(rowData["LastRow_High"]) >= parseFloat(rowData["Day_High"]) ) 
+  {
+	cellcolor = "#9af764";
+	cellvalue = "LastRow_High";
+  }
+  else if ( parseFloat(rowData["LastRow_Low"]) <= parseFloat(rowData["Day_Low"]) ) 
+  {
+	cellcolor = "#fc5a50";
+	cellvalue = "LastRow_Low";
+  }
+  row.append($("<td style='background-color:" + cellcolor + "'>" + cellvalue + "</td>"));
+}
+</script>
+<style>
+table {
+  border: 1px solid #666;
+  text-align: center;
+}
+
+th {
+  background: #f8f8f8;
+  font-weight: bold;
+  padding: 2px;
+  border: 1px solid #666;
+}
+td	{
+  border: 1px solid #666;
+}
+
+</style>
+</head>
+<body>
+<div>
+<table>
+	<tr>
+		<td style="vertical-align:top"><table id="DataStrategy"></table></td>
+		<td style="width:75px">&nbsp;</td>
+		<td style="vertical-align:top">
+			<span id="LastRecTime"></span><br/><br/><table id="DataPattern"></table>
+		</td>
+	</tr>
+</table>
+</div>
+<script>
+	$(document).ready(function () { 
+		
+		setTimeout(() => {
+		  $.getJSON('/returnStrategy',  
+			 function (data) { 
+				 var objd = $.parseJSON(data); 
+				 drawTable(objd); 
+		 }); 
+		}, "1000");
+
+		setTimeout(() => {
+		  $.getJSON('/returnPattern',  
+			 function (data) { 
+				 var objd = $.parseJSON(data); 
+				 drawPatternTable(objd); 
+		 }); 
+		}, "3000");
+		
+	});
+</script>
+</body>
+</html>

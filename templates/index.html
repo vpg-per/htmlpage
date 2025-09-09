@@ -1,8 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Index Page</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="{{ url_for('static', filename='jquery-3.6.0.min.js') }}"></script>
+    <script type="text/javascript">
+        function drawTable(data) {
+            // Get Table headers and print
+            var head = $("<tr><th>DateTime</th><th>Symbol</th><th>Interval</th><th>Close</th><th>RSI/Avg</th><th>Signal</th></tr>")
+            $("#DataStrategy").append(head);
+            // Print the content of rows in DataTable
+            for (var i = data.length-1; i >= 0; i--) {
+                drawRow(data[i]);
+            }
+        }
+
+        function drawRow(rowData) {
+            var row = $("<tr />")
+            $("#DataStrategy").append(row);
+            row.append($("<td>" + rowData["nmonth"] + "-" + rowData["nday"] + " " + rowData["hour"] + ":" + rowData["minute"] + "</td>"));
+            row.append($("<td>" + rowData["symbol"] + "</td>"));
+            row.append($("<td>" + rowData["interval"] + "</td>"));
+            row.append($("<td>" + rowData["close"] + "</td>"));
+            row.append($("<td>" + rowData["rsi"] + "/" + rowData["signal"] + "</td>"));
+            
+            var cellcolor = "#D3D3D3";
+            var celltext = "Neutral";
+            if ( rowData["bullish_crossover"]  == true )
+            {
+                cellcolor = "#9af764";
+                celltext = "Bullish";                
+            }
+            else if ( rowData["bearish_crossover"]  == true )
+            {
+                cellcolor = "#fc5a50";
+                celltext = "Bearish";
+            }
+            row.append($("<td style='background-color:" + cellcolor + "'>" + celltext + "</td>"));
+        }
+    </script>
+</head>
 <body>
-    <ul>
-        <li><a href="/formSubmit.html">Check Out This Form!</a>
-    </ul>
+    
+<div>
+<table>
+	<tr>
+		<td style="vertical-align:top"><table id="DataStrategy"></table></td>
+	</tr>
+</table>
+</div>
+
+<script>
+	$(document).ready(function () { 
+		
+		setTimeout(() => {
+		  $.getJSON('/returnPattern',  
+			 function (data) { 
+				 //var objd = $.parseJSON(data); 
+				 drawTable(data); 
+		 }); 
+		}, "3000");
+		
+	});
+</script>
 </body>
 </html>

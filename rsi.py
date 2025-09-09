@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
-import time
+from time import gmtime
 from flask import Flask,json,render_template
 app = Flask(__name__)
 
@@ -146,6 +146,9 @@ def calculate_rsi_signal(df, interval="5m"):
     df_sel_cols = df_final.loc[:, ['rec_dt', 'nmonth', 'nday', 'hour', 'minute', 'close', 'rsi', 'signal', 'bullish_crossover', 'bearish_crossover']]
     #df_filtered_rows = de_sel_cols = df_sel_cols[(df_sel_cols['bullish_crossover']==True) | (df_sel_cols['bearish_crossover']==True)]
     
+    #if (interval=="15m"):
+    #    return df_sel_cols
+    #else:
     return df_sel_cols.tail(1)
 
 def calculate_stock_signal(symbol="SPY", period="1y", interval="1d"):
@@ -198,7 +201,7 @@ def calculate_stock_signal(symbol="SPY", period="1y", interval="1d"):
 @app.route('/returnPattern')
 def ReturnPattern():
 #def main():
-    stocksymbols = ['QQQ','IWM','GLD']
+    stocksymbols = ['QQQ']
     df_allsymbols = {}
     for ss in stocksymbols:  
         df_stock = calculate_stock_signal(ss, period="5d", interval="15m")
@@ -209,6 +212,9 @@ def ReturnPattern():
         else:
             df_allsymbols = pd.concat([df_allsymbols, df_stock], ignore_index=False)
     #print(df_allsymbols)
+    local_timezone = datetime.utcnow().astimezone().tzinfo
+
+    print(local_timezone)
     
     return df_allsymbols.to_json(orient='records', index=False)
 

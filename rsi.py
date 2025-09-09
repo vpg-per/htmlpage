@@ -114,18 +114,16 @@ def identify_crossovers(df):
     df['signal_prev'] = df['signal'].shift(1)
     
     # Bullish crossover: RSI crosses above Signal
-    bullflagval = (
+    df['bullish_crossover'] = (
         (df['rsi'] > df['signal']) & 
         (df['rsi_prev'] <= df['signal_prev'])
     )
-    df['bullish_crossover'] = bullflagval
     
     # Bearish crossover: RSI crosses below Signal
-    bearflagval = (
+    df['bearish_crossover'] = (
         (df['rsi'] < df['signal']) & 
         (df['rsi_prev'] >= df['signal_prev'])
     )
-    df['bearish_crossover'] = bearflagval
     
     return df
 
@@ -157,6 +155,10 @@ def calculate_stock_signal(symbol="SPY", period="1y", interval="1d"):
         print("Failed to fetch data. Please check your internet connection.")
         return
     
+    TOKEN = "6746979446:AAFk8lDekzXRkHQG5MUJVdpx1P0orOpWW1g"
+    chat_id = "802449612"
+    message = ""
+
     interval="5m"
     alldatafs = {}
     df_5m = calculate_rsi_signal(df, interval)
@@ -166,8 +168,16 @@ def calculate_stock_signal(symbol="SPY", period="1y", interval="1d"):
     interval="15m"
     df_15m = calculate_rsi_signal(df)
     df_15m['interval'] = interval
+    if (df_15m['bullish_crossover'].iloc[-1]):
+        message = "RSI buy crossover triggered at " + df_15m['hour'].iloc[-1] + "-" + df_15m['minute'].iloc[-1] + ", stock symbol: " + symbol + ", interval: " + interval
+    elif (df_15m['bearish_crossover'].iloc[-1]):
+        message = "****RSI sell crossover triggered at " + df_15m['hour'].iloc[-1] + "-" + df_15m['minute'].iloc[-1] + ", stock symbol: " + symbol + ", interval: " + interval
     df_alltfs = pd.concat([df_alltfs, df_15m], ignore_index=False)
 
+    if (message != ""):
+        url = f"https://api.telegram.org/bot{TOKEN}/sendMessage?chat_id={chat_id}&text={message}"
+        print(requests.get(url).json())
+    
     interval="30m"
     df_30m = calculate_rsi_signal(df)
     df_30m['interval'] = interval
@@ -198,10 +208,7 @@ def ReturnPattern():
             df_allsymbols = df_stock.copy()
         else:
             df_allsymbols = pd.concat([df_allsymbols, df_stock], ignore_index=False)
-    print(df_allsymbols)
-        #df_as_dict_list = df_stock.to_dict(orient='records')
-        #print(df_as_dict_list)
-        #df_allsymbols = pd.concat([df_allsymbols, {x: df_stock}], ignore_index=False)
+    #print(df_allsymbols)
     
     return df_allsymbols.to_json(orient='records', index=False)
 

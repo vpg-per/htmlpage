@@ -44,7 +44,7 @@ def fetch_stock_data(symbol="SPY", period="1y", interval="1d"):
             'open': quotes['open'],
             'high': quotes['high'],
             'low': quotes['low'],
-            'close': quotes['close'],
+            'close': [round(item,2) for item in quotes['close']],
             'volume': quotes['volume'],            
         })
         
@@ -127,7 +127,7 @@ def identify_crossovers(df):
     
     return df
 
-def calculate_rsi_signal(df, interval="5m"):
+def calculate_rsi_signal(symbol, df, interval="5m"):
     df_signal = { }
 
     if (interval=="5m"):
@@ -144,12 +144,34 @@ def calculate_rsi_signal(df, interval="5m"):
     df_with_rsi = calculate_rsi(df_signal, period=14)    
     df_final = identify_crossovers(df_with_rsi)
     df_sel_cols = df_final.loc[:, ['rec_dt', 'nmonth', 'nday', 'hour', 'minute', 'close', 'rsi', 'signal', 'bullish_crossover', 'bearish_crossover']]
+    df_sel_cols['interval'] = interval
     #df_filtered_rows = de_sel_cols = df_sel_cols[(df_sel_cols['bullish_crossover']==True) | (df_sel_cols['bearish_crossover']==True)]
     
-    #if (interval=="15m"):
-    #    return df_sel_cols
-    #else:
+    if ((interval == "15m") | (interval == "30m" )):
+        send_chat_alert(symbol, df_sel_cols)
+
     return df_sel_cols.tail(1)
+
+def send_chat_alert(symbol, df):
+
+    TOKEN = "6746979446:AAFk8lDekzXRkHQG5MUJVdpx1P0orOpWW1g"
+    chat_id = "802449612"
+    message = ""
+
+    df_reversed_rows = df[::-1]
+    for date, row in df_reversed_rows.head(1).iterrows():
+        if (( row['bullish_crossover'] == True) | ( row['bearish_crossover'] == True)):
+            message=""
+            print("Debug msg: " + row['nmonth'] + "," + row['nday'] + "," + row['hour'] + "," + row['minute'] + "," + str(row['close']) + "," + str(row['rsi']) + "," + str(row['signal']) + "," + str(row['bullish_crossover']) + "," +  str(row['bearish_crossover']) )
+            if (( row['bullish_crossover'] == True) ):
+                message = "RSI buy crossover triggered at " + row['hour'] + ":" + row['minute'] + ", stock symbol: " + symbol + ", interval: " + row['interval']
+            elif ( ( row['bearish_crossover'] == True)):
+                message = "RSI sell crossover triggered at " + row['hour'] + ":" + row['minute'] + ", stock symbol: " + symbol + ", interval: " + row['interval']
+            if (message != ""):
+                url = f"https://api.telegram.org/bot{TOKEN}/sendMessage?chat_id={chat_id}&text={message}"
+                print(requests.get(url).json())
+    
+    return
 
 def calculate_stock_signal(symbol="SPY", period="1y", interval="1d"):
     df = fetch_stock_data(symbol, period="5d", interval="5m")
@@ -158,42 +180,21 @@ def calculate_stock_signal(symbol="SPY", period="1y", interval="1d"):
         print("Failed to fetch data. Please check your internet connection.")
         return
     
-    TOKEN = "6746979446:AAFk8lDekzXRkHQG5MUJVdpx1P0orOpWW1g"
-    chat_id = "802449612"
-    message = ""
-
     interval="5m"
     alldatafs = {}
-    df_5m = calculate_rsi_signal(df, interval)
-    df_5m['interval'] = interval
+    df_5m = calculate_rsi_signal(symbol, df, interval)
     df_alltfs = df_5m.copy()
     
-    interval="15m"
-    df_15m = calculate_rsi_signal(df)
-    df_15m['interval'] = interval
-    if (df_15m['bullish_crossover'].iloc[-1]):
-        message = "RSI buy crossover triggered at " + df_15m['hour'].iloc[-1] + "-" + df_15m['minute'].iloc[-1] + ", stock symbol: " + symbol + ", interval: " + interval
-    elif (df_15m['bearish_crossover'].iloc[-1]):
-        message = "****RSI sell crossover triggered at " + df_15m['hour'].iloc[-1] + "-" + df_15m['minute'].iloc[-1] + ", stock symbol: " + symbol + ", interval: " + interval
+    df_15m = calculate_rsi_signal(symbol, df, "15m")
     df_alltfs = pd.concat([df_alltfs, df_15m], ignore_index=False)
-
-    if (message != ""):
-        url = f"https://api.telegram.org/bot{TOKEN}/sendMessage?chat_id={chat_id}&text={message}"
-        print(requests.get(url).json())
     
-    interval="30m"
-    df_30m = calculate_rsi_signal(df)
-    df_30m['interval'] = interval
+    df_30m = calculate_rsi_signal(symbol, df, "30m")
     df_alltfs = pd.concat([df_alltfs, df_30m], ignore_index=False)
 
-    interval="1h"
-    df_1h = calculate_rsi_signal(df)
-    df_1h['interval'] = interval
+    df_1h = calculate_rsi_signal(symbol, df, "1h")
     df_alltfs = pd.concat([df_alltfs, df_1h], ignore_index=False)
 
-    interval="4h"
-    df_4h = calculate_rsi_signal(df)
-    df_4h['interval']=interval
+    df_4h = calculate_rsi_signal(symbol, df, "4h")
     df_alltfs = pd.concat([df_alltfs, df_4h], ignore_index=False)
     
     return df_alltfs
@@ -201,7 +202,7 @@ def calculate_stock_signal(symbol="SPY", period="1y", interval="1d"):
 @app.route('/returnPattern')
 def ReturnPattern():
 #def main():
-    stocksymbols = ['QQQ']
+    stocksymbols = ['QQQ', 'IWM', 'GLD']
     df_allsymbols = {}
     for ss in stocksymbols:  
         df_stock = calculate_stock_signal(ss, period="5d", interval="15m")
@@ -214,7 +215,7 @@ def ReturnPattern():
     #print(df_allsymbols)
     local_timezone = datetime.utcnow().astimezone().tzinfo
 
-    print(local_timezone)
+    print("Web app time: " + str(local_timezone))
     
     return df_allsymbols.to_json(orient='records', index=False)
 

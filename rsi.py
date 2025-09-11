@@ -48,11 +48,15 @@ def fetch_stock_data(symbol="SPY", period="1y", interval="1d"):
             'close': quotes['close'],
             'volume': quotes['volume'],            
         })
-        first_timestamp_tz = df['timestamp'].iloc[0].tz
-        print(f"Timezone of the first timestamp: {first_timestamp_tz}")
+#        first_timestamp_tz = df['timestamp'].iloc[0].tz
         # Clean data (remove NaN values)
         df = df.dropna()
-        df['rec_dt']= df['timestamp'].dt.date
+
+        timezone_name = datetime.now().astimezone().tzname()
+        if ("UTC" in timezone_name):
+            df['rec_dt']= df['timestamp'].dt.tz_localize('UTC').dt.tz_convert('America/New_York')
+        else:
+            df['rec_dt']= df['timestamp'].dt.date
         df['nmonth']= df['timestamp'].dt.strftime('%m')
         df['nday']= df['timestamp'].dt.strftime('%d')
         df['hour']= df['timestamp'].dt.strftime('%H')
@@ -230,13 +234,10 @@ def index():
         est_timezone = ZoneInfo('America/New_York')
         est_time = local_now.astimezone(est_timezone)
         print(f"Debug 1 { est_time }")
+
     return render_template('./index.html')
 
 if __name__ == "__main__":
     # Run the analysis
     #spy_data = main()
     app.run(host='0.0.0.0', port=80) 
-
-
-
-

@@ -225,7 +225,7 @@ def index():
     timezone_name = local_now.tzname()
     timezone_info = local_now.tzinfo
 
-    print(f"Debug 1 Current local timezone name: {timezone_name}, timezone_info: {timezone_info}, {local_now.strftime('%H:%M:%S %Z %z')")
+    print(f"Debug 1 Current local timezone name: {timezone_name}, timezone_info: {timezone_info}, {local_now.strftime('%H:%M:%S %Z %z')}")
     if ("UTC" in timezone_name):
         est_timezone = ZoneInfo('America/New_York')
         est_time = local_now.astimezone(est_timezone)
@@ -236,6 +236,7 @@ if __name__ == "__main__":
     # Run the analysis
     #spy_data = main()
     app.run(host='0.0.0.0', port=80) 
+
 
 
 

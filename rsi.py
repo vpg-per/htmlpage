@@ -226,10 +226,11 @@ def index():
     timezone_name = local_now.tzname()
     # Extract the timezone information (including offset)
     timezone_info = local_now.tzinfo
-    print(f"Current local timezone name: {timezone_name}, timezone_info: {timezone_info}")
+    print(f"Current local timezone name: {timezone_name}, timezone_info: {timezone_info}, {local_now.strftime('%H:%M:%S %Z %z')}")
     return render_template('./index.html')
 
 if __name__ == "__main__":
     # Run the analysis
     #spy_data = main()
     app.run(host='0.0.0.0', port=80) 
+

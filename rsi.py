@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
-from time import gmtime
+from time import gmtime, strftime
 from flask import Flask,json,render_template
 app = Flask(__name__)
 
@@ -44,10 +44,11 @@ def fetch_stock_data(symbol="SPY", period="1y", interval="1d"):
             'open': quotes['open'],
             'high': quotes['high'],
             'low': quotes['low'],
-            'close': [round(item,2) for item in quotes['close']],
+            'close': quotes['close'],
             'volume': quotes['volume'],            
         })
-        
+        first_timestamp_tz = df['timestamp'].iloc[0].tz
+        print(f"Timezone of the first timestamp: {first_timestamp_tz}")
         # Clean data (remove NaN values)
         df = df.dropna()
         df['rec_dt']= df['timestamp'].dt.date
@@ -55,6 +56,7 @@ def fetch_stock_data(symbol="SPY", period="1y", interval="1d"):
         df['nday']= df['timestamp'].dt.strftime('%d')
         df['hour']= df['timestamp'].dt.strftime('%H')
         df['minute']= df['timestamp'].dt.strftime('%M')
+        df['close'] = round(df['close'], 2)
         df.set_index('timestamp', inplace=True)
         return df
         
@@ -145,28 +147,28 @@ def calculate_rsi_signal(symbol, df, interval="5m"):
     df_final = identify_crossovers(df_with_rsi)
     df_sel_cols = df_final.loc[:, ['rec_dt', 'nmonth', 'nday', 'hour', 'minute', 'close', 'rsi', 'signal', 'bullish_crossover', 'bearish_crossover']]
     df_sel_cols['interval'] = interval
+    df_sel_cols['symbol'] = symbol.replace("%3DF","")
     #df_filtered_rows = de_sel_cols = df_sel_cols[(df_sel_cols['bullish_crossover']==True) | (df_sel_cols['bearish_crossover']==True)]
     
     if ((interval == "15m") | (interval == "30m" )):
-        send_chat_alert(symbol, df_sel_cols)
+        send_chat_alert(df_sel_cols)
 
     return df_sel_cols.tail(1)
 
-def send_chat_alert(symbol, df):
+def send_chat_alert(df):
 
     TOKEN = "6746979446:AAFk8lDekzXRkHQG5MUJVdpx1P0orOpWW1g"
     chat_id = "802449612"
     message = ""
 
-    df_reversed_rows = df[::-1]
-    for date, row in df_reversed_rows.head(1).iterrows():
+    for date, row in df.tail(1).iterrows():
         if (( row['bullish_crossover'] == True) | ( row['bearish_crossover'] == True)):
             message=""
             print("Debug msg: " + row['nmonth'] + "," + row['nday'] + "," + row['hour'] + "," + row['minute'] + "," + str(row['close']) + "," + str(row['rsi']) + "," + str(row['signal']) + "," + str(row['bullish_crossover']) + "," +  str(row['bearish_crossover']) )
             if (( row['bullish_crossover'] == True) ):
-                message = "RSI buy crossover triggered at " + row['hour'] + ":" + row['minute'] + ", stock symbol: " + symbol + ", interval: " + row['interval']
+                message = "RSI buy crossover triggered at " + row['hour'] + ":" + row['minute'] + ", stock symbol: " + row['symbol'] + ", interval: " + row['interval']
             elif ( ( row['bearish_crossover'] == True)):
-                message = "RSI sell crossover triggered at " + row['hour'] + ":" + row['minute'] + ", stock symbol: " + symbol + ", interval: " + row['interval']
+                message = "RSI sell crossover triggered at " + row['hour'] + ":" + row['minute'] + ", stock symbol: " + row['symbol'] + ", interval: " + row['interval']
             if (message != ""):
                 url = f"https://api.telegram.org/bot{TOKEN}/sendMessage?chat_id={chat_id}&text={message}"
                 print(requests.get(url).json())
@@ -203,24 +205,28 @@ def calculate_stock_signal(symbol="SPY", period="1y", interval="1d"):
 def ReturnPattern():
 #def main():
     stocksymbols = ['QQQ', 'IWM', 'GLD']
+    #stocksymbols = ['NQ%3DF', 'RTY%3DF', 'GC%3DF']
     df_allsymbols = {}
     for ss in stocksymbols:  
         df_stock = calculate_stock_signal(ss, period="5d", interval="15m")
-        df_stock['symbol'] = ss
         df_len = len(df_allsymbols)
         if df_len == 0:
             df_allsymbols = df_stock.copy()
         else:
             df_allsymbols = pd.concat([df_allsymbols, df_stock], ignore_index=False)
-    #print(df_allsymbols)
-    local_timezone = datetime.utcnow().astimezone().tzinfo
-
-    print("Web app time: " + str(local_timezone))
     
     return df_allsymbols.to_json(orient='records', index=False)
 
 @app.route("/")
 def index():
+    now = datetime.now()
+    # Convert it to an aware datetime object in the local timezone
+    local_now = now.astimezone()
+    # Extract the timezone name
+    timezone_name = local_now.tzname()
+    # Extract the timezone information (including offset)
+    timezone_info = local_now.tzinfo
+    print(f"Current local timezone name: {timezone_name}, timezone_info: {timezone_info}")
     return render_template('./index.html')
 
 if __name__ == "__main__":

@@ -5,183 +5,20 @@ import matplotlib.pyplot as plt
 from datetime import datetime, timedelta, timezone
 from time import gmtime, strftime
 from zoneinfo import ZoneInfo
-from flask import Flask,json,render_template
+from flask import Flask,json,render_template, request, make_response, redirect, session, json
+from dataManager import ServiceManager
 app = Flask(__name__)
+g_message = []
+objMgr = ServiceManager()
 
-def fetch_stock_data(symbol="SPY", period="1y", interval="1d"):
-    """
-    Fetch SPY data from Yahoo Finance API
+def calculate_stock_signal(symbol="SPY", interval="1d"):
+    global objMgr
+    global g_message
     
-    Parameters:
-    period: str - Valid periods: 1d,5d,1mo,3mo,6mo,1y,2y,5y,10y,ytd,max
-    interval: str - Valid intervals: 1m,2m,5m,15m,30m,60m,90m,1h,1d,5d,1wk,1mo,3mo
-    """
-    url = f"https://query1.finance.yahoo.com/v8/finance/chart/" + symbol
-    
-    params = {
-        'period1': int((datetime.now() - timedelta(days=5)).timestamp()),
-        'period2': int(datetime.now().timestamp()),
-        'interval': interval,
-        'includePrePost': 'true'
-    }
-    
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-    }
-    
-    try:
-        response = requests.get(url, params=params, headers=headers)
-        response.raise_for_status()
-        data = response.json()
-        
-        # Extract price data
-        result = data['chart']['result'][0]
-        timestamps = result['timestamp']
-        quotes = result['indicators']['quote'][0]
-        
-        # Create DataFrame
-        df = pd.DataFrame({
-            'timestamp': [datetime.fromtimestamp(ts) for ts in timestamps],
-            'open': quotes['open'],
-            'high': quotes['high'],
-            'low': quotes['low'],
-            'close': quotes['close'],
-            'volume': quotes['volume'],            
-        })
-#        first_timestamp_tz = df['timestamp'].iloc[0].tz
-        # Clean data (remove NaN values)
-        df = df.dropna()
-
-        timezone_name = datetime.now().astimezone().tzname()
-        if ("UTC" in timezone_name):
-            df['rec_dt']= df['timestamp'].dt.tz_localize('UTC').dt.tz_convert('America/New_York')
-        else:
-            df['rec_dt']= df['timestamp'].dt.date
-        df['nmonth']= df['timestamp'].dt.strftime('%m')
-        df['nday']= df['timestamp'].dt.strftime('%d')
-        df['hour']= df['timestamp'].dt.strftime('%H')
-        df['minute']= df['timestamp'].dt.strftime('%M')
-        df['close'] = round(df['close'], 2)
-        df.set_index('timestamp', inplace=True)
-        return df
-        
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching data: {e}")
-        return None
-    except KeyError as e:
-        print(f"Error parsing data: {e}")
-        return None
-
-def calculate_rsi(df, period=14):
-    """
-    Calculate RSI (Relative Strength Index)
-    
-    Parameters:
-    df: DataFrame with 'close' column
-    period: RSI calculation period (default 14)
-    
-    Returns:
-    DataFrame with RSI column added
-    """
-    df = df.copy()
-    
-    # Calculate price changes
-    df['price_change'] = df['close'].diff()
-    
-    # Separate gains and losses
-    df['gain'] = df['price_change'].where(df['price_change'] > 0, 0)
-    df['loss'] = -df['price_change'].where(df['price_change'] < 0, 0)
-    
-    # Calculate average gain and average loss using Wilder's smoothing
-    df['avg_gain'] = df['gain'].ewm(alpha=1/period, adjust=False).mean()
-    df['avg_loss'] = df['loss'].ewm(alpha=1/period, adjust=False).mean()
-    
-    # Calculate Relative Strength (RS)
-    df['rs'] = df['avg_gain'] / df['avg_loss']
-    
-    # Calculate RSI
-    df['rsi'] = round(100 - (100 / (1 + df['rs'])),2)
-    
-    # Calculate Signal
-    df['signal'] = round(df['rsi'].ewm(span=period).mean(),2)
-    
-    return df
-
-def identify_crossovers(df):
-    """
-    Identify RSI crossover points
-    
-    Returns:
-    DataFrame with crossover signals
-    """
-    df = df.copy()
-    
-    # Calculate crossover signals
-    df['rsi_prev'] = df['rsi'].shift(1)
-    df['signal_prev'] = df['signal'].shift(1)
-    
-    # Bullish crossover: RSI crosses above Signal
-    df['bullish_crossover'] = (
-        (df['rsi'] > df['signal']) & 
-        (df['rsi_prev'] <= df['signal_prev'])
-    )
-    
-    # Bearish crossover: RSI crosses below Signal
-    df['bearish_crossover'] = (
-        (df['rsi'] < df['signal']) & 
-        (df['rsi_prev'] >= df['signal_prev'])
-    )
-    
-    return df
-
-def calculate_rsi_signal(symbol, df, interval="5m"):
-    df_signal = { }
-
-    if (interval=="5m"):
-        df_signal = df.copy()
-    elif (interval=="15m"):
-        df_signal = df[df['minute'].isin(["00", "15", "30", "45"])]
-    elif (interval=="30m"):
-        df_signal = df[df['minute'].isin(["00", "30"])]
-    elif (interval=="1h"):
-        df_signal = df[df['minute'].isin(["00"])]
-    elif (interval=="4h"):
-        df_signal = df[(df['hour'].isin(["00", "04", "08", "12", "16", "20", "24"]) & (df['minute'].isin(["00"])))]
-    
-    df_with_rsi = calculate_rsi(df_signal, period=14)    
-    df_final = identify_crossovers(df_with_rsi)
-    df_sel_cols = df_final.loc[:, ['rec_dt', 'nmonth', 'nday', 'hour', 'minute', 'close', 'rsi', 'signal', 'bullish_crossover', 'bearish_crossover']]
-    df_sel_cols['interval'] = interval
-    df_sel_cols['symbol'] = symbol.replace("%3DF","")
-    #df_filtered_rows = de_sel_cols = df_sel_cols[(df_sel_cols['bullish_crossover']==True) | (df_sel_cols['bearish_crossover']==True)]
-    
-    if ((interval == "15m") | (interval == "30m" )):
-        send_chat_alert(df_sel_cols)
-
-    return df_sel_cols.tail(1)
-
-def send_chat_alert(df):
-
-    TOKEN = "6746979446:AAFk8lDekzXRkHQG5MUJVdpx1P0orOpWW1g"
-    chat_id = "802449612"
-    message = ""
-
-    for date, row in df.tail(1).iterrows():
-        if (( row['bullish_crossover'] == True) | ( row['bearish_crossover'] == True)):
-            message=""
-            print("Debug msg: " + row['nmonth'] + "," + row['nday'] + "," + row['hour'] + "," + row['minute'] + "," + str(row['close']) + "," + str(row['rsi']) + "," + str(row['signal']) + "," + str(row['bullish_crossover']) + "," +  str(row['bearish_crossover']) )
-            if (( row['bullish_crossover'] == True) ):
-                message = "RSI buy crossover triggered at " + row['hour'] + ":" + row['minute'] + ", stock symbol: " + row['symbol'] + ", interval: " + row['interval']
-            elif ( ( row['bearish_crossover'] == True)):
-                message = "RSI sell crossover triggered at " + row['hour'] + ":" + row['minute'] + ", stock symbol: " + row['symbol'] + ", interval: " + row['interval']
-            if (message != ""):
-                url = f"https://api.telegram.org/bot{TOKEN}/sendMessage?chat_id={chat_id}&text={message}"
-                print(requests.get(url).json())
-    
-    return
-
-def calculate_stock_signal(symbol="SPY", period="1y", interval="1d"):
-    df = fetch_stock_data(symbol, period="5d", interval="5m")
+    stPeriod = int((datetime.now() - timedelta(days=5)).timestamp())
+    endPeriod = int(datetime.now().timestamp())
+    df = objMgr.fetch_stock_data(symbol, stPeriod, endPeriod, interval)
+    #df = fetch_stock_data(symbol, period="5d", interval="5m")
     
     if df is None:
         print("Failed to fetch data. Please check your internet connection.")
@@ -189,38 +26,85 @@ def calculate_stock_signal(symbol="SPY", period="1y", interval="1d"):
     
     interval="5m"
     alldatafs = {}
-    df_5m = calculate_rsi_signal(symbol, df, interval)
+    df_5m = objMgr.calculate_rsi_signal(symbol, df, interval)
     df_alltfs = df_5m.copy()
     
-    df_15m = calculate_rsi_signal(symbol, df, "15m")
+    df_15m = objMgr.calculate_rsi_signal(symbol, df, "15m")
     df_alltfs = pd.concat([df_alltfs, df_15m], ignore_index=False)
     
-    df_30m = calculate_rsi_signal(symbol, df, "30m")
+    df_30m = objMgr.calculate_rsi_signal(symbol, df, "30m")
     df_alltfs = pd.concat([df_alltfs, df_30m], ignore_index=False)
 
-    df_1h = calculate_rsi_signal(symbol, df, "1h")
+    df_1h = objMgr.calculate_rsi_signal(symbol, df, "1h")
     df_alltfs = pd.concat([df_alltfs, df_1h], ignore_index=False)
 
-    df_4h = calculate_rsi_signal(symbol, df, "4h")
+    df_4h = objMgr.calculate_rsi_signal(symbol, df, "4h")
     df_alltfs = pd.concat([df_alltfs, df_4h], ignore_index=False)
-    
+
+    g_message = objMgr.get_message()    
     return df_alltfs
+
+
+@app.route('/rangePattern')
+def RangePattern():
+    pmst = request.args['pmst']
+    pmet = request.args['pmet']
+    curTime = request.args['ct']
+    global objMgr
+    
+    stocksymbols = ['SPY']
+    #stocksymbols = ['NQ%3DF', 'RTY%3DF', 'GC%3DF']
+    allsymbols_data = []
+    for ss in stocksymbols:  
+        df_mng_stock = objMgr.fetch_stock_data(ss, startPeriod=pmst, endPeriod=pmet, interval="5m")
+        df_rg_stock = objMgr.fetch_stock_data(ss, startPeriod=pmet, endPeriod=curTime, interval="5m")
+        
+        pm_open = df_mng_stock[((df_mng_stock['hour']=="04") & (df_mng_stock['minute']=="00"))]['open'].iloc[0]
+        pm_close = df_mng_stock[((df_mng_stock['hour']=="09") & (df_mng_stock['minute']=="25"))]['close'].iloc[0]
+        pm_highest_score = df_mng_stock['high'].max()
+        pm_lowest_score = df_mng_stock['low'].min()
+        pm_data = f"o:{pm_open}, h:{pm_highest_score}, l:{pm_lowest_score}, c:{pm_close}"
+        
+        rg_open = df_rg_stock[((df_rg_stock['hour']=="09") & (df_rg_stock['minute']=="30"))]['open'].iloc[0]
+        rg_close = df_rg_stock[((df_rg_stock['hour']=="09") & (df_rg_stock['minute']=="55"))]['close'].iloc[0]
+        rg_highest_score = df_rg_stock['high'].max()
+        rg_lowest_score = df_rg_stock['low'].min()
+        rg_data = f"o:{rg_open}, h:{rg_highest_score}, l:{rg_lowest_score}, c:{rg_close}"
+        allsymbols_data.append(f"{{ 'symbol': {ss}, 'pmdata': {{{pm_data}}}, 'rgdata': {{{rg_data}}} }}")
+
+    if(len(allsymbols_data) > 0):
+        sentmsg = objMgr.send_chart_alert(g_message)
+        print(sentmsg)
+    json_string = '{"result": "Processing is complete."}'
+    return json_string
 
 @app.route('/returnPattern')
 def ReturnPattern():
 #def main():
-    stocksymbols = ['QQQ', 'IWM', 'GLD']
+    global g_message
+    global objMgr
+    g_message = []
+    stocksymbols = ['IWM', 'QQQ', 'GLD',]
     #stocksymbols = ['NQ%3DF', 'RTY%3DF', 'GC%3DF']
     df_allsymbols = {}
     for ss in stocksymbols:  
-        df_stock = calculate_stock_signal(ss, period="5d", interval="15m")
+        df_stock = calculate_stock_signal(ss, interval="5m")
         df_len = len(df_allsymbols)
         if df_len == 0:
             df_allsymbols = df_stock.copy()
         else:
             df_allsymbols = pd.concat([df_allsymbols, df_stock], ignore_index=False)
-    
+
+    if (len(g_message) > 0):
+        sentmsg = objMgr.send_chart_alert(g_message)
+        print(sentmsg)
+
     return df_allsymbols.to_json(orient='records', index=False)
+
+
+@app.route("/bkOutInvoke")
+def BkOutInvoke():
+    return render_template('./second.html')
 
 @app.route("/")
 def index():
@@ -229,11 +113,11 @@ def index():
     timezone_name = local_now.tzname()
     timezone_info = local_now.tzinfo
 
-    print(f"Debug 1 Current local timezone name: {timezone_name}, timezone_info: {timezone_info}, {local_now.strftime('%H:%M:%S %Z %z')}")
+    #print(f"Debug 1 Current local timezone name: {timezone_name}, timezone_info: {timezone_info}, {local_now.strftime('%H:%M:%S %Z %z')}")
     if ("UTC" in timezone_name):
         est_timezone = ZoneInfo('America/New_York')
         est_time = local_now.astimezone(est_timezone)
-        print(f"Debug 1 { est_time }")
+        #print(f"Debug 1 { est_time }")
 
     return render_template('./index.html')
 

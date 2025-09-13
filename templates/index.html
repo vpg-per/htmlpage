@@ -9,7 +9,7 @@
     <script type="text/javascript">
         function drawTable(data) {
             // Get Table headers and print
-            var head = $("<tr><th>DateTime</th><th>Symbol</th><th>Interval</th><th>Close</th><th>RSI/Avg</th><th>Signal</th></tr>")
+            var head = $("<tr><th>DateTime</th><th>Symbol</th><th>Interval</th><th>Open/Close</th><th>RSI/Avg/Diff</th><th>Crossover</th></tr>")
             $("#DataStrategy").append(head);
             // Print the content of rows in DataTable
             for (var i = data.length-1; i >= 0; i--) {
@@ -20,13 +20,23 @@
         function drawRow(rowData) {
             var row = $("<tr />")
             $("#DataStrategy").append(row);
+            var diff = rowData["rsi"]-rowData["signal"];            
+            var cellcolor = "D3D3D3";
+            if ( diff > 0)
+            {
+                cellcolor = "#b3d9b3";               
+            }
+            else if (diff < 0 )
+            {
+                cellcolor = "#f6d1d1";
+            }
             row.append($("<td>" + rowData["nmonth"] + "-" + rowData["nday"] + " " + rowData["hour"] + ":" + rowData["minute"] + "</td>"));
             row.append($("<td>" + rowData["symbol"] + "</td>"));
             row.append($("<td>" + rowData["interval"] + "</td>"));
-            row.append($("<td>" + rowData["close"] + "</td>"));
-            row.append($("<td>" + rowData["rsi"] + "/" + rowData["signal"] + "</td>"));
+            row.append($("<td style='color:" + (rowData["close"] > rowData["open"] ? "#006400" : (rowData["close"] == rowData["open"] ? "#000000" : "#c30911" )) + "'>" + rowData["open"] + "/" + rowData["close"] + "</td>"));
+            row.append($("<td style='background-color:" + cellcolor + "'>" + rowData["rsi"] + "/" + rowData["signal"] + "/" + diff.toFixed(2) + "</td>"));
             
-            var cellcolor = "#D3D3D3";
+            cellcolor = "#000000";
             var celltext = "Neutral";
             if ( rowData["bullish_crossover"]  == true )
             {
@@ -38,7 +48,7 @@
                 cellcolor = "#fc5a50";
                 celltext = "Bearish";
             }
-            row.append($("<td style='background-color:" + cellcolor + "'>" + celltext + "</td>"));
+            row.append($("<td style='color:" + cellcolor + "'>" + celltext + "</td>"));
         }
     </script>
 </head>

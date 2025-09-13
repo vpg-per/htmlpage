@@ -80,7 +80,6 @@ def RangePattern():
 
 @app.route('/returnPattern')
 def ReturnPattern():
-#def main():
     global g_message
     global objMgr
     g_message = []
@@ -108,6 +107,7 @@ def BkOutInvoke():
 
 @app.route("/")
 def index():
+#def main():
     now = datetime.now()
     local_now = now.astimezone()
     timezone_name = local_now.tzname()

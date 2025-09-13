@@ -173,10 +173,10 @@ class ServiceManager:
         for date, row in df.tail(1).iterrows():
             if (( row['bullish_crossover'] == True) | ( row['bearish_crossover'] == True)):
                 if (( row['bullish_crossover'] == True) ):
-                    message = (f"RSI buy signal for {row['symbol']} stock at {row['hour']}:{row['minute']}UTC, open:{row['open']}, close: {row['close']}, low: {row['low']}, high: {row['high']}, interval: {row['interval']};")
+                    message = (f"{row['symbol']} buy signal on {row['interval']} analysis at {row['hour']}:{row['minute']}UTC, o:{row['open']}, c: {row['close']}, l: {row['low']}, h: {row['high']};")
                     self._message.append( message )
                 elif ( ( row['bearish_crossover'] == True)):
-                    message = (f"RSI sell signal for {row['symbol']} stock at {row['hour']}:{row['minute']}UTC, open:{row['open']}, close: {row['close']}, low: {row['low']}, high: {row['high']}, interval: {row['interval']};")
+                    message = (f"{row['symbol']} sell signal on {row['interval']} analysis at {row['hour']}:{row['minute']}UTC, o:{row['open']}, c: {row['close']}, l: {row['low']}, h: {row['high']};")
                     self._message.append( message )
 
         return

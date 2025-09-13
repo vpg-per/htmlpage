@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Index Page</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="{{ url_for('static', filename='jquery-3.6.0.min.js') }}"></script>
+    <script type="text/javascript">
+
+    </script>
+</head>
+<body>
+
+<div>
+<table>
+	<tr>
+		<td style="vertical-align:top"><div id="DataStrategy"></div></td>
+	</tr>
+</table>
+</div>
+
+<script>
+	$(document).ready(function () { 
+
+        const d = new Date();
+        const current_hour = d.getHours() + 1
+        if ( current_hour >= 9 && current_hour <= 12)
+        {
+            const formattedDate_st = d.getFullYear() +"-" + (d.getMonth() + 1) + "-" + d.getDate() + " 08:00:00Z";
+            const formattedDate_pmet = d.getFullYear() +"-" + (d.getMonth() + 1) + "-" + d.getDate() + " 13:30:00Z";
+            const formattedDate_rnget = d.getFullYear() +"-" + (d.getMonth() + 1) + "-" + d.getDate() + " 14:00:00Z";
+            var dateObject = new Date(formattedDate_st);
+            const premktst_unixTimeSecs = Math.floor(dateObject.getTime() / 1000);
+            dateObject = new Date(formattedDate_pmet);
+            const premktet_unixTimeSecs = Math.floor(dateObject.getTime() / 1000);
+            dateObject = new Date(formattedDate_rnget);
+            const rngTime_unixTimeSecs = Math.floor( dateObject.getTime() / 1000);
+            //alert(premktst_unixTimeSecs + "," + premktet_unixTimeSecs + "," + curTime_unixTimeSecs + "," + current_hour); 
+            var surl = '/rangePattern?pmst=' + premktst_unixTimeSecs + '&pmet=' + premktet_unixTimeSecs + '&ct=' + rngTime_unixTimeSecs;
+
+            setTimeout(() => {
+            $.getJSON(surl,  
+                function (data) { 
+                    $("#DataStrategy").html(data.result);
+            }); 
+            }, "1000");
+        }
+        else
+        {
+            $("#DataStrategy").html("Not in time range. Try this method in between 9am and 1145am");
+        }	
+	});
+</script>
+</body>
+</html>

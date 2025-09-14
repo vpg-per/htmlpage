@@ -15,10 +15,9 @@ def calculate_stock_signal(symbol="SPY", interval="1d"):
     global objMgr
     global g_message
     
-    stPeriod = int((datetime.now() - timedelta(days=5)).timestamp())
+    stPeriod = int((datetime.now()- timedelta(days=5)).timestamp()) 
     endPeriod = int(datetime.now().timestamp())
     df = objMgr.fetch_stock_data(symbol, stPeriod, endPeriod, interval)
-    #df = fetch_stock_data(symbol, period="5d", interval="5m")
     
     if df is None:
         print("Failed to fetch data. Please check your internet connection.")
@@ -108,16 +107,6 @@ def BkOutInvoke():
 @app.route("/")
 def index():
 #def main():
-    now = datetime.now()
-    local_now = now.astimezone()
-    timezone_name = local_now.tzname()
-    timezone_info = local_now.tzinfo
-
-    #print(f"Debug 1 Current local timezone name: {timezone_name}, timezone_info: {timezone_info}, {local_now.strftime('%H:%M:%S %Z %z')}")
-    if ("UTC" in timezone_name):
-        est_timezone = ZoneInfo('America/New_York')
-        est_time = local_now.astimezone(est_timezone)
-        #print(f"Debug 1 { est_time }")
 
     return render_template('./index.html')
 

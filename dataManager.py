@@ -162,6 +162,8 @@ class ServiceManager:
         df_sel_cols['symbol'] = symbol.replace("%3DF","")
         #df_filtered_rows = de_sel_cols = df_sel_cols[(df_sel_cols['bullish_crossover']==True) | (df_sel_cols['bearish_crossover']==True)]
         
+        df_temp = df_sel_cols[::-1]
+        print(df_temp.head(15))
         if ((interval == "15m") | (interval == "30m" )):
             self.check_forcrossover(df_sel_cols)
 

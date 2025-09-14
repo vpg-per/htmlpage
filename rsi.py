@@ -83,7 +83,7 @@ def ReturnPattern():
     global g_message
     global objMgr
     g_message = []
-    stocksymbols = ['IWM', 'QQQ', 'GLD',]
+    stocksymbols = ['QQQ', 'IWM', 'GLD']
     #stocksymbols = ['NQ%3DF', 'RTY%3DF', 'GC%3DF']
     df_allsymbols = {}
     for ss in stocksymbols:  

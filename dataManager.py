@@ -153,7 +153,7 @@ class ServiceManager:
         elif (interval=="1h"):
             df_signal = df[df['minute'].isin(["00"])]
         elif (interval=="4h"):
-            df_signal = df[(df['hour'].isin(["00", "04", "08", "12", "16", "20", "24"]) & (df['minute'].isin(["00"])))]
+            df_signal = df[(df['hour'].isin(["01", "05", "09", "13", "17", "21"]) & (df['minute'].isin(["00"])))]
         
         df_with_rsi = self.calculate_rsi(df_signal, period=14)    
         df_final = self.identify_crossovers(df_with_rsi)
@@ -187,10 +187,3 @@ class ServiceManager:
 
     def get_message(self):
         return self._message
-
-
-
-
-
-
-

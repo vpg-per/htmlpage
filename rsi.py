@@ -81,7 +81,9 @@ def RangePattern():
 def ReturnPattern():
     global g_message
     global objMgr
+
     g_message = []
+    objMgr.set_message(g_message)
     stocksymbols = ['QQQ', 'IWM', 'GLD']
     #stocksymbols = ['NQ%3DF', 'RTY%3DF', 'GC%3DF']
     df_allsymbols = {}
@@ -107,6 +109,8 @@ def BkOutInvoke():
 @app.route("/")
 def index():
 #def main():
+    global g_message
+    g_message = []
 
     return render_template('./index.html')
 

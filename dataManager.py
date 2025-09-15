@@ -187,6 +187,9 @@ class ServiceManager:
 
     def get_message(self):
         return self._message
+    
+    def set_message(self, new_message):
+        self._message = new_message
 
 
 

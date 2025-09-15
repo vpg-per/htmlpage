@@ -187,3 +187,10 @@ class ServiceManager:
 
     def get_message(self):
         return self._message
+
+
+
+
+
+
+

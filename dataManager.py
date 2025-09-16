@@ -58,8 +58,10 @@ class ServiceManager:
 
             timezone_name = datetime.now().astimezone().tzname()
             if ("UTC" in timezone_name):
+                print("Debug 1 UTC if called")
                 df['rec_dt']= df['timestamp'].dt.tz_localize('UTC').dt.tz_convert('America/New_York')
             else:
+                print("Debug 2 UTC else called")
                 df['rec_dt']= df['timestamp'].dt.date
             df['nmonth']= df['timestamp'].dt.strftime('%m')
             df['nday']= df['timestamp'].dt.strftime('%d')

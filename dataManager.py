@@ -72,10 +72,6 @@ class ServiceManager:
                 df['hour']= df['timestamp'].dt.strftime('%H')
                 df['minute']= df['timestamp'].dt.strftime('%M')
 
-            df['nmonth']= df['timestamp'].dt.strftime('%m')
-            df['nday']= df['timestamp'].dt.strftime('%d')
-            df['hour']= df['timestamp'].dt.strftime('%H')
-            df['minute']= df['timestamp'].dt.strftime('%M')
             df['close'] = round(df['close'], 2)
             df['open'] = round(df['open'], 2)
             df['high'] = round(df['high'], 2)

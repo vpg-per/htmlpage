@@ -60,9 +60,18 @@ class ServiceManager:
             if ("UTC" in timezone_name):
                 print("Debug 1 UTC if called")
                 df['rec_dt']= df['timestamp'].dt.tz_localize('UTC').dt.tz_convert('America/New_York')
+                df['nmonth']= df['timestamp'].dt.tz_localize('UTC').dt.tz_convert('America/New_York').strftime('%m')
+                df['nday']= df['timestamp'].dt.tz_localize('UTC').dt.tz_convert('America/New_York').strftime('%d')
+                df['hour']= df['timestamp'].dt.strftime('%H')
+                df['minute']= df['timestamp'].dt.strftime('%M')
             else:
                 print("Debug 2 UTC else called")
                 df['rec_dt']= df['timestamp'].dt.date
+                df['nmonth']= df['timestamp'].dt.strftime('%m')
+                df['nday']= df['timestamp'].dt.strftime('%d')
+                df['hour']= df['timestamp'].dt.strftime('%H')
+                df['minute']= df['timestamp'].dt.strftime('%M')
+
             df['nmonth']= df['timestamp'].dt.strftime('%m')
             df['nday']= df['timestamp'].dt.strftime('%d')
             df['hour']= df['timestamp'].dt.strftime('%H')

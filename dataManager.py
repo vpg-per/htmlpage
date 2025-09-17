@@ -46,37 +46,24 @@ class ServiceManager:
             # Create DataFrame
             df = pd.DataFrame({
                 'timestamp': [datetime.fromtimestamp(ts, ZoneInfo("America/New_York")) for ts in timestamps],
-                # 'open': quotes['open'],
-                # 'high': quotes['high'],
-                # 'low': quotes['low'],
-                # 'close': quotes['close'],
+                'open': quotes['open'],
+                'high': quotes['high'],
+                'low': quotes['low'],
+                'close': quotes['close'],
                 # 'volume': quotes['volume'],            
             })
-            # first_timestamp_tz = df['timestamp'].iloc[0].tz
             # Clean data (remove NaN values)
             df = df.dropna()
-            #df['datetime_est'] = (pd.to_datetime(df['timestamp'], unit='s').dt.tz_convert('America/New_York'))
 
-            timezone_name = datetime.now().astimezone().tzname()
-            # if ("UTC" in timezone_name):
-            #     print("Debug 1 UTC if called")
-            #     df['rec_dt']= df['timestamp'].dt.tz_localize('UTC').dt.tz_convert('America/New_York')
-            #     df['nmonth']= df['timestamp'].dt.tz_localize('UTC').dt.tz_convert('America/New_York').strftime('%m')
-            #     df['nday']= df['timestamp'].dt.tz_localize('UTC').dt.tz_convert('America/New_York').strftime('%d')
-            #     df['hour']= df['timestamp'].dt.tz_localize('UTC').dt.tz_convert('America/New_York').strftime('%H')
-            #     df['minute']= df['timestamp'].dt.tz_localize('UTC').dt.tz_convert('America/New_York').strftime('%M')
-            # else:
-            print("Debug 2 UTC else called")
             df['rec_dt']= df['timestamp'].dt.date
             df['nmonth']= df['timestamp'].dt.strftime('%m')
             df['nday']= df['timestamp'].dt.strftime('%d')
             df['hour']= df['timestamp'].dt.strftime('%H')
             df['minute']= df['timestamp'].dt.strftime('%M')
-
-            # df['close'] = round(df['close'], 2)
-            # df['open'] = round(df['open'], 2)
-            # df['high'] = round(df['high'], 2)
-            # df['low'] = round(df['low'], 2)
+            df['close'] = round(df['close'], 2)
+            df['open'] = round(df['open'], 2)
+            df['high'] = round(df['high'], 2)
+            df['low'] = round(df['low'], 2)
             df.set_index('timestamp', inplace=True)
             return df
             
@@ -181,10 +168,10 @@ class ServiceManager:
         for date, row in df.tail(1).iterrows():
             if (( row['bullish_crossover'] == True) | ( row['bearish_crossover'] == True)):
                 if (( row['bullish_crossover'] == True) ):
-                    message = (f"{row['symbol']} buy signal on {row['interval']} analysis at {row['hour']}:{row['minute']}UTC, o:{row['open']}, c: {row['close']}, l: {row['low']}, h: {row['high']};")
+                    message = (f"{row['symbol']} buy signal on {row['interval']} analysis at {row['hour']}:{row['minute']}, o:{row['open']}, c: {row['close']};")
                     self._message.append( message )
                 elif ( ( row['bearish_crossover'] == True)):
-                    message = (f"{row['symbol']} sell signal on {row['interval']} analysis at {row['hour']}:{row['minute']}UTC, o:{row['open']}, c: {row['close']}, l: {row['low']}, h: {row['high']};")
+                    message = (f"{row['symbol']} sell signal on {row['interval']} analysis at {row['hour']}:{row['minute']}, o:{row['open']}, c: {row['close']};")
                     self._message.append( message )
 
         return

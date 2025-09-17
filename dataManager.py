@@ -45,8 +45,7 @@ class ServiceManager:
             
             # Create DataFrame
             df = pd.DataFrame({
-                'timestamp': timestamps,
-                #'timestamp': [datetime.fromtimestamp(ts, ZoneInfo("America/New_York")) for ts in timestamps],
+                'timestamp': [datetime.fromtimestamp(ts, ZoneInfo("America/New_York")) for ts in timestamps],
                 # 'open': quotes['open'],
                 # 'high': quotes['high'],
                 # 'low': quotes['low'],
@@ -56,7 +55,7 @@ class ServiceManager:
             # first_timestamp_tz = df['timestamp'].iloc[0].tz
             # Clean data (remove NaN values)
             df = df.dropna()
-            df['datetime_est'] = (pd.to_datetime(df['timestamp'], unit='s').dt.tz_convert('America/New_York'))
+            #df['datetime_est'] = (pd.to_datetime(df['timestamp'], unit='s').dt.tz_convert('America/New_York'))
 
             timezone_name = datetime.now().astimezone().tzname()
             # if ("UTC" in timezone_name):

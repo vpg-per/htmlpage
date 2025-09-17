@@ -45,12 +45,12 @@ class ServiceManager:
             
             # Create DataFrame
             df = pd.DataFrame({
-                'timestamp': [datetime.fromtimestamp(ts) for ts in timestamps],
-                'open': quotes['open'],
-                'high': quotes['high'],
-                'low': quotes['low'],
-                'close': quotes['close'],
-                'volume': quotes['volume'],            
+                'timestamp': [datetime.fromtimestamp(ts, ZoneInfo("America/New_York")) for ts in timestamps],
+                # 'open': quotes['open'],
+                # 'high': quotes['high'],
+                # 'low': quotes['low'],
+                # 'close': quotes['close'],
+                # 'volume': quotes['volume'],            
             })
             # first_timestamp_tz = df['timestamp'].iloc[0].tz
             # Clean data (remove NaN values)
@@ -72,10 +72,10 @@ class ServiceManager:
                 df['hour']= df['timestamp'].dt.strftime('%H')
                 df['minute']= df['timestamp'].dt.strftime('%M')
 
-            df['close'] = round(df['close'], 2)
-            df['open'] = round(df['open'], 2)
-            df['high'] = round(df['high'], 2)
-            df['low'] = round(df['low'], 2)
+            # df['close'] = round(df['close'], 2)
+            # df['open'] = round(df['open'], 2)
+            # df['high'] = round(df['high'], 2)
+            # df['low'] = round(df['low'], 2)
             df.set_index('timestamp', inplace=True)
             return df
             

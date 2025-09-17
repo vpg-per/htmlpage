@@ -45,7 +45,8 @@ class ServiceManager:
             
             # Create DataFrame
             df = pd.DataFrame({
-                'timestamp': [datetime.fromtimestamp(ts, ZoneInfo("America/New_York")) for ts in timestamps],
+                'timestamp': timestamps,
+                #'timestamp': [datetime.fromtimestamp(ts, ZoneInfo("America/New_York")) for ts in timestamps],
                 # 'open': quotes['open'],
                 # 'high': quotes['high'],
                 # 'low': quotes['low'],
@@ -55,22 +56,25 @@ class ServiceManager:
             # first_timestamp_tz = df['timestamp'].iloc[0].tz
             # Clean data (remove NaN values)
             df = df.dropna()
+            df['datetime_est'] = (pd.to_datetime(df['timestamp'], unit='s')
+                      .dt.tz_localize('UTC')
+                      .dt.tz_convert('America/New_York'))
 
             timezone_name = datetime.now().astimezone().tzname()
-            if ("UTC" in timezone_name):
-                print("Debug 1 UTC if called")
-                df['rec_dt']= df['timestamp'].dt.tz_localize('UTC').dt.tz_convert('America/New_York')
-                df['nmonth']= df['timestamp'].dt.tz_localize('UTC').dt.tz_convert('America/New_York').strftime('%m')
-                df['nday']= df['timestamp'].dt.tz_localize('UTC').dt.tz_convert('America/New_York').strftime('%d')
-                df['hour']= df['timestamp'].dt.tz_localize('UTC').dt.tz_convert('America/New_York').strftime('%H')
-                df['minute']= df['timestamp'].dt.tz_localize('UTC').dt.tz_convert('America/New_York').strftime('%M')
-            else:
-                print("Debug 2 UTC else called")
-                df['rec_dt']= df['timestamp'].dt.date
-                df['nmonth']= df['timestamp'].dt.strftime('%m')
-                df['nday']= df['timestamp'].dt.strftime('%d')
-                df['hour']= df['timestamp'].dt.strftime('%H')
-                df['minute']= df['timestamp'].dt.strftime('%M')
+            # if ("UTC" in timezone_name):
+            #     print("Debug 1 UTC if called")
+            #     df['rec_dt']= df['timestamp'].dt.tz_localize('UTC').dt.tz_convert('America/New_York')
+            #     df['nmonth']= df['timestamp'].dt.tz_localize('UTC').dt.tz_convert('America/New_York').strftime('%m')
+            #     df['nday']= df['timestamp'].dt.tz_localize('UTC').dt.tz_convert('America/New_York').strftime('%d')
+            #     df['hour']= df['timestamp'].dt.tz_localize('UTC').dt.tz_convert('America/New_York').strftime('%H')
+            #     df['minute']= df['timestamp'].dt.tz_localize('UTC').dt.tz_convert('America/New_York').strftime('%M')
+            # else:
+            #     print("Debug 2 UTC else called")
+            #     df['rec_dt']= df['timestamp'].dt.date
+            #     df['nmonth']= df['timestamp'].dt.strftime('%m')
+            #     df['nday']= df['timestamp'].dt.strftime('%d')
+            #     df['hour']= df['timestamp'].dt.strftime('%H')
+            #     df['minute']= df['timestamp'].dt.strftime('%M')
 
             # df['close'] = round(df['close'], 2)
             # df['open'] = round(df['open'], 2)

@@ -5,12 +5,17 @@ import matplotlib.pyplot as plt
 from datetime import datetime, timedelta, timezone
 from time import gmtime, strftime
 from zoneinfo import ZoneInfo
+import os
+import psycopg2
+from dotenv import load_dotenv
 
 class ServiceManager:
     def __init__(self):
         self._message = []
         self.token = "6746979446:AAFk8lDekzXRkHQG5MUJVdpx1P0orOpWW1g"
         self.chat_id = "802449612"
+        
+        load_dotenv()
 
     def fetch_stock_data(self, symbol, startPeriod, endPeriod, interval="1d"):
         """
@@ -157,7 +162,7 @@ class ServiceManager:
         df_sel_cols['symbol'] = symbol.replace("%3DF","")
         #df_filtered_rows = de_sel_cols = df_sel_cols[(df_sel_cols['bullish_crossover']==True) | (df_sel_cols['bearish_crossover']==True)]
         
-        if ((interval == "15m") | (interval == "30m" )):
+        if ((interval == "15m") | (interval == "30m" ) | (interval == "1h" )):
             self.check_forcrossover(df_sel_cols)
 
         return df_sel_cols.tail(1)
@@ -167,12 +172,14 @@ class ServiceManager:
 
         for date, row in df.tail(1).iterrows():
             if (( row['bullish_crossover'] == True) | ( row['bearish_crossover'] == True)):
-                if (( row['bullish_crossover'] == True) ):
-                    message = (f"{row['symbol']} buy signal on {row['interval']} analysis at {row['hour']}:{row['minute']}, o:{row['open']}, c: {row['close']};")
-                    self._message.append( message )
-                elif ( ( row['bearish_crossover'] == True)):
-                    message = (f"{row['symbol']} sell signal on {row['interval']} analysis at {row['hour']}:{row['minute']}, o:{row['open']}, c: {row['close']};")
-                    self._message.append( message )
+                if (self.isExistsinDB(row) == False):
+                    if (( row['bullish_crossover'] == True) ):
+                        message = (f"{row['symbol']} buy signal on {row['interval']} analysis at {row['hour']}:{row['minute']}, o:{row['open']}, c: {row['close']};")
+                        self._message.append( message )
+                    elif ( ( row['bearish_crossover'] == True)):
+                        message = (f"{row['symbol']} sell signal on {row['interval']} analysis at {row['hour']}:{row['minute']}, o:{row['open']}, c: {row['close']};")
+                        self._message.append( message )
+                    self.AddRecordtoDB(row)
 
         return
 
@@ -186,9 +193,44 @@ class ServiceManager:
     def set_message(self, new_message):
         self._message = new_message
 
+    def isExistsinDB(self, row):
+        retval=False
+        conn_string = os.getenv("DATABASE_URL")
+        conn = None
+        try:
+            dtlookupval = f"{row['nmonth']}-{row['nday']} {row['hour']}:{row['minute']}"
+            with psycopg2.connect(conn_string) as conn:
+                # Open a cursor to perform database operations
+                with conn.cursor() as cur:
+                    cur.execute("Select \"triggerTime\", \"interval\", \"crossover\" from rsicrossover where \"triggerTime\"=%s and \"interval\"=%s and \"stocksymbol\"=%s and \"NotificationSent\"=True; ", (dtlookupval, row['interval'], row['symbol'],))
+                    if (cur.rowcount > 0 ):
+                        retval = True
+                    # results = cur.fetchall()
+                    # for dbrow in results:
+                    #     print(dbrow)
+                cur.close()
+            conn.close()
+            return retval
+            
+        except psycopg2.Error as e:
+            print(f"Error connecting to or querying the database: {e}")
 
-
-
+    def AddRecordtoDB(self, row):
+        conn_string = os.getenv("DATABASE_URL")
+        conn = None
+        try:
+            dttimeval = f"{row['nmonth']}-{row['nday']} {row['hour']}:{row['minute']}"
+            crossoverval = "Bullish" if (row['bullish_crossover'] == True) else  "Bearish" if ( row['bearish_crossover'] == True) else "Neutral" 
+            with psycopg2.connect(conn_string) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "INSERT INTO rsicrossover (\"triggerTime\", \"interval\", \"crossover\", \"stocksymbol\", \"Open\", \"Close\", \"Low\", \"High\", \"NotificationSent\", \"rsiVal\", \"signal\") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);",
+                        (dttimeval, row['interval'], crossoverval, row['symbol'], row['open'], row['close'], row['low'], row['high'], "TRUE", row['rsi'], row['signal'])
+                    )
+        
+        except psycopg2.Error as e:
+            print(f"Error connecting to or querying the database: {e}")
+        return
 
 
 

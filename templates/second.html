@@ -25,7 +25,7 @@
 
         const d = new Date();
         const current_hour = d.getHours() + 1
-        if ( current_hour >= 9 && current_hour <= 12)
+        //if ( current_hour >= 9 && current_hour <= 12)
         {
             const formattedDate_st = d.getFullYear() +"-" + (d.getMonth() + 1) + "-" + d.getDate() + " 08:00:00Z";
             const formattedDate_pmet = d.getFullYear() +"-" + (d.getMonth() + 1) + "-" + d.getDate() + " 13:30:00Z";
@@ -46,9 +46,9 @@
             }); 
             }, "1000");
         }
-        else
+        //else
         {
-            $("#DataStrategy").html("Not in time range. Try this method in between 9am and 1145am");
+          //  $("#DataStrategy").html("Not in time range. Try this method in between 9am and 1145am");
         }	
 	});
 </script>

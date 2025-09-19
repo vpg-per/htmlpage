@@ -20,7 +20,8 @@
 <script>
 	$(document).ready(function () { 
 
-        const current_hour = (new Date()).getHours()
+        const d = new Date();
+        const current_hour = d.getHours()
         //if (( current_hour >= 13 && current_hour <= 16) || (current_hour >= 9 && current_hour <= 12 ))
         {
             const formattedDate_st = d.getFullYear() +"-" + (d.getMonth() + 1) + "-" + d.getDate() + " 08:00:00Z";
@@ -51,5 +52,6 @@
 </script>
 </body>
 </html>
+
 
 

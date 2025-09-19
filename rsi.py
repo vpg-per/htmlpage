@@ -51,7 +51,7 @@ def RangePattern():
     curTime = request.args['ct']
 
     datetime_object_local = datetime.fromtimestamp(int(curTime))
-    print(f"Local datetime: {datetime_object_local}")
+    print(f"Local input datetime: {datetime_object_local}")
     global objMgr
     
     stocksymbols = ['SPY']

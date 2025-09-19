@@ -49,6 +49,7 @@ def RangePattern():
     pmst = request.args['pmst']
     pmet = request.args['pmet']
     curTime = request.args['ct']
+    print("curr hour: " + request.args['ch'])
 
     datetime_object_local = datetime.fromtimestamp(int(curTime))
     print(f"Local input datetime: {datetime_object_local}")
@@ -122,4 +123,5 @@ def index():
 if __name__ == "__main__":
     # Run the analysis
     #spy_data = main()
+
     app.run(host='0.0.0.0', port=80) 

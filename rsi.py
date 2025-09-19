@@ -49,6 +49,9 @@ def RangePattern():
     pmst = request.args['pmst']
     pmet = request.args['pmet']
     curTime = request.args['ct']
+
+    datetime_object_local = datetime.fromtimestamp(int(curTime))
+    print(f"Local datetime: {datetime_object_local}")
     global objMgr
     
     stocksymbols = ['SPY']

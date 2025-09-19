@@ -218,5 +218,20 @@ class ServiceManager:
             print(f"Error connecting to or querying the database: {e}")
         return
 
+    def DelOldRecordsFromDB(self):
+        conn_string = os.getenv("DATABASE_URL")
+        conn = None
+        try:
+            nowdt = datetime.now().date()- timedelta(days=1)
+            dttimeval = f"%{nowdt.strftime('%m')}-{nowdt.strftime('%d')}%"
+            delete_sql = "DELETE FROM rsicrossover WHERE \"triggerTime\" like %s;"
+            with psycopg2.connect(conn_string) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(delete_sql, (dttimeval,))
+        
+        except psycopg2.Error as e:
+            print(f"Error connecting to or querying the database: {e}")
+        return
+
 
 

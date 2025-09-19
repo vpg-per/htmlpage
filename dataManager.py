@@ -7,15 +7,22 @@ from time import gmtime, strftime
 from zoneinfo import ZoneInfo
 import os
 import psycopg2
-from dotenv import load_dotenv
 
 class ServiceManager:
     def __init__(self):
         self._message = []
-        self.token = "6746979446:AAFk8lDekzXRkHQG5MUJVdpx1P0orOpWW1g"
-        self.chat_id = "802449612"
         
-        load_dotenv()
+        try:
+            from dotenv import load_dotenv
+            load_dotenv()
+        except ImportError:
+            pass
+        
+        #self.token = "6746979446:AAFk8lDekzXRkHQG5MUJVdpx1P0orOpWW1g"
+        #self.chat_id = "802449612"
+        self.token = os.getenv("TELE_TOKEN")
+        self.chat_id = os.getenv("TELE_CHAT_ID")
+        print(f"token: {self.token}, {self.chat_id}")
 
     def fetch_stock_data(self, symbol, startPeriod, endPeriod, interval="1d"):
         """
@@ -162,7 +169,7 @@ class ServiceManager:
         df_sel_cols['symbol'] = symbol.replace("%3DF","")
         #df_filtered_rows = de_sel_cols = df_sel_cols[(df_sel_cols['bullish_crossover']==True) | (df_sel_cols['bearish_crossover']==True)]
         
-        if ((interval == "15m") | (interval == "30m" ) | (interval == "1h" )):
+        if ((interval == "15m") | (interval == "30m" ) ):
             self.check_forcrossover(df_sel_cols)
 
         return df_sel_cols.tail(1)

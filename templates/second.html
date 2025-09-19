@@ -21,7 +21,7 @@
 	$(document).ready(function () { 
 
         const current_hour = (new Date()).getHours()
-        if (( current_hour >= 13 && current_hour <= 16) || (current_hour >= 9 && current_hour <= 12 ))
+        //if (( current_hour >= 13 && current_hour <= 16) || (current_hour >= 9 && current_hour <= 12 ))
         {
             const formattedDate_st = d.getFullYear() +"-" + (d.getMonth() + 1) + "-" + d.getDate() + " 08:00:00Z";
             const formattedDate_pmet = d.getFullYear() +"-" + (d.getMonth() + 1) + "-" + d.getDate() + " 13:30:00Z";
@@ -34,7 +34,7 @@
             const rngTime_unixTimeSecs = Math.floor( dateObject.getTime() / 1000);
             //const currentUnixTimestamp = Math.floor(Date.now() / 1000);
             //alert(premktst_unixTimeSecs + "," + premktet_unixTimeSecs + "," + curTime_unixTimeSecs + "," + current_hour); 
-            var surl = '/rangePattern?pmst=' + premktst_unixTimeSecs + '&pmet=' + premktet_unixTimeSecs + '&ct=' + rngTime_unixTimeSecs;
+            var surl = '/rangePattern?pmst=' + premktst_unixTimeSecs + '&pmet=' + premktet_unixTimeSecs + '&ct=' + rngTime_unixTimeSecs + '&ch=' + current_hour;
 
             setTimeout(() => {
             $.getJSON(surl,  
@@ -43,12 +43,13 @@
             }); 
             }, "1000");
         }
-        else
+        //else
         {
-            $("#DataStrategy").html("Not in time range. Try this method in between 9am and 1145am EST");
+          //  $("#DataStrategy").html("Not in time range. Try this method in between 9am and 1145am EST");
         }	
 	});
 </script>
 </body>
 </html>
+
 

@@ -10,7 +10,6 @@ import psycopg2
 
 class ServiceManager:
     def __init__(self):
-        self._message = []
         
         try:
             from dotenv import load_dotenv
@@ -18,11 +17,9 @@ class ServiceManager:
         except ImportError:
             pass
         
-        #self.token = "6746979446:AAFk8lDekzXRkHQG5MUJVdpx1P0orOpWW1g"
-        #self.chat_id = "802449612"
+        self._message = []
         self.token = os.getenv("TELE_TOKEN")
         self.chat_id = os.getenv("TELE_CHAT_ID")
-        print(f"token: {self.token}, {self.chat_id}")
 
     def fetch_stock_data(self, symbol, startPeriod, endPeriod, interval="1d"):
         """
@@ -97,25 +94,19 @@ class ServiceManager:
         Returns:
         DataFrame with RSI column added
         """
-        df = df.copy()
-        
+        df = df.copy()        
         # Calculate price changes
-        df['price_change'] = df['close'].diff()
-        
+        df['price_change'] = df['close'].diff()        
         # Separate gains and losses
         df['gain'] = df['price_change'].where(df['price_change'] > 0, 0)
-        df['loss'] = -df['price_change'].where(df['price_change'] < 0, 0)
-        
+        df['loss'] = -df['price_change'].where(df['price_change'] < 0, 0)        
         # Calculate average gain and average loss using Wilder's smoothing
         df['avg_gain'] = df['gain'].ewm(alpha=1/period, adjust=False).mean()
-        df['avg_loss'] = df['loss'].ewm(alpha=1/period, adjust=False).mean()
-        
+        df['avg_loss'] = df['loss'].ewm(alpha=1/period, adjust=False).mean()        
         # Calculate Relative Strength (RS)
-        df['rs'] = df['avg_gain'] / df['avg_loss']
-        
+        df['rs'] = df['avg_gain'] / df['avg_loss']        
         # Calculate RSI
-        df['rsi'] = round(100 - (100 / (1 + df['rs'])),2)
-        
+        df['rsi'] = round(100 - (100 / (1 + df['rs'])),2)        
         # Calculate Signal
         df['signal'] = round(df['rsi'].ewm(span=period).mean(),2)
         
@@ -128,23 +119,14 @@ class ServiceManager:
         Returns:
         DataFrame with crossover signals
         """
-        df = df.copy()
-        
+        df = df.copy()        
         # Calculate crossover signals
         df['rsi_prev'] = df['rsi'].shift(1)
         df['signal_prev'] = df['signal'].shift(1)
-        
         # Bullish crossover: RSI crosses above Signal
-        df['bullish_crossover'] = (
-            (df['rsi'] > df['signal']) & 
-            (df['rsi_prev'] <= df['signal_prev'])
-        )
-        
+        df['bullish_crossover'] = ( (df['rsi'] > df['signal']) & (df['rsi_prev'] <= df['signal_prev'])  )
         # Bearish crossover: RSI crosses below Signal
-        df['bearish_crossover'] = (
-            (df['rsi'] < df['signal']) & 
-            (df['rsi_prev'] >= df['signal_prev'])
-        )
+        df['bearish_crossover'] = ( (df['rsi'] < df['signal']) &  (df['rsi_prev'] >= df['signal_prev']) )
         
         return df
 
@@ -212,9 +194,6 @@ class ServiceManager:
                     cur.execute("Select \"triggerTime\", \"interval\", \"crossover\" from rsicrossover where \"triggerTime\"=%s and \"interval\"=%s and \"stocksymbol\"=%s and \"NotificationSent\"=True; ", (dtlookupval, row['interval'], row['symbol'],))
                     if (cur.rowcount > 0 ):
                         retval = True
-                    # results = cur.fetchall()
-                    # for dbrow in results:
-                    #     print(dbrow)
                 cur.close()
             conn.close()
             return retval

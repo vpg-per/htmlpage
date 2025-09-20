@@ -2,25 +2,78 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
- 
-    <link rel="stylesheet" href="https://pyscript.net/alpha/pyscript.css" />
-    <script defer src="https://pyscript.net/alpha/pyscript.js"></script>
- 
-    <title>PyScript Demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Index Page</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="{{ url_for('static', filename='jquery-3.6.0.min.js') }}"></script>
+    <script type="text/javascript">
+        function drawTable(data) {
+            // Get Table headers and print
+            var head = $("<tr><th>DateTime</th><th>Symbol</th><th>Interval</th><th>Open/Close</th><th>RSI/Avg/Diff</th><th>Crossover</th></tr>")
+            $("#DataStrategy").append(head);
+            // Print the content of rows in DataTable
+            for (var i = data.length-1; i >= 0; i--) {
+                drawRow(data[i]);
+            }
+        }
+
+        function drawRow(rowData) {
+            var row = $("<tr />")
+            $("#DataStrategy").append(row);
+            var diff = rowData["rsi"]-rowData["signal"];            
+            var cellcolor = "D3D3D3";
+            if ( diff > 0)
+            {
+                cellcolor = "#b3d9b3";               
+            }
+            else if (diff < 0 )
+            {
+                cellcolor = "#f6d1d1";
+            }
+            row.append($("<td>" + rowData["nmonth"] + "-" + rowData["nday"] + " " + rowData["hour"] + ":" + rowData["minute"] + "</td>"));
+            row.append($("<td>" + rowData["symbol"] + "</td>"));
+            row.append($("<td>" + rowData["interval"] + "</td>"));
+            row.append($("<td style='color:" + (rowData["close"] > rowData["open"] ? "#006400" : (rowData["close"] == rowData["open"] ? "#000000" : "#c30911" )) + "'>" + rowData["open"] + "/" + rowData["close"] + "</td>"));
+            row.append($("<td style='background-color:" + cellcolor + "'>" + rowData["rsi"] + "/" + rowData["signal"] + "/" + diff.toFixed(2) + "</td>"));
+            
+            cellcolor = "#000000";
+            var celltext = "Neutral";
+            if ( rowData["bullish_crossover"]  == true )
+            {
+                cellcolor = "#006400";
+                celltext = "Bullish";                
+            }
+            else if ( rowData["bearish_crossover"]  == true )
+            {
+                cellcolor = "#fc5a50";
+                celltext = "Bearish";
+            }
+            row.append($("<td style='color:" + cellcolor + "'>" + celltext + "</td>"));
+        }
+    </script>
 </head>
 <body>
-  <py-config type="toml">
-    packages = ["numpy"]
-  </py-config>
-    <h1>Hello,
-    <py-script>
-		import numpy as np
+    
+<div>
+<table>
+	<tr>
+		<td style="vertical-align:top"><table id="DataStrategy"></table></td>
+	</tr>
+</table>
+</div>
 
-        name = "Geeks"
-        print(name)
-				
-		print(np.random.randn(10, 4))
-    </py-script>   
-    </h1>
+<script>
+	$(document).ready(function () { 
+		
+		setTimeout(() => {
+		  $.getJSON('/returnPattern',  
+			 function (data) { 
+				 //var objd = $.parseJSON(data); 
+				 drawTable(data); 
+		 }); 
+		}, "1000");
+        
+	});
+</script>
 </body>
 </html>

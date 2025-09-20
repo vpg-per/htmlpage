@@ -54,6 +54,7 @@ class ServiceManager:
             
             # Create DataFrame
             df = pd.DataFrame({
+                'unixtime': timestamps,
                 'timestamp': [datetime.fromtimestamp(ts, ZoneInfo("America/New_York")) for ts in timestamps],
                 'open': quotes['open'],
                 'high': quotes['high'],
@@ -130,19 +131,28 @@ class ServiceManager:
         
         return df
 
-    def calculate_rsi_signal(self, symbol, df, interval="5m"):
+    def calculate_rsi_signal(self, symbol, df, endPeriod, interval="5m"):
         df_signal = { }
-
         if (interval=="5m"):
+            minutes_to_subtract = endPeriod.minute % 5
+            endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0).timestamp() - 1
+            df = df[df['unixtime'] <= endPeriod ]
             df_signal = df.copy()
         elif (interval=="15m"):
-            df_signal = df[df['minute'].isin(["00", "15", "30", "45"])]
+            minutes_to_subtract = endPeriod.minute % 15
+            endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0).timestamp() - 1
+            df_signal = df[(df['minute'].isin(["00", "15", "30", "45"])) & (df['unixtime'] <= endPeriod)]
         elif (interval=="30m"):
-            df_signal = df[df['minute'].isin(["00", "30"])]
+            minutes_to_subtract = endPeriod.minute % 30
+            endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0).timestamp() - 1
+            df_signal = df[(df['minute'].isin(["00", "30"])) & ( df['unixtime'] <= endPeriod)]
         elif (interval=="1h"):
-            df_signal = df[df['minute'].isin(["00"])]
+            endPeriod = endPeriod.replace(minute=0, second=0, microsecond=0).timestamp() - 1
+            df_signal = df[(df['minute'].isin(["00"])) & (df['unixtime'] <= endPeriod)]
         elif (interval=="4h"):
-            df_signal = df[(df['hour'].isin(["01", "05", "09", "13", "17", "21"]) & (df['minute'].isin(["00"])))]
+            hours_to_subtract = endPeriod.hour % 4
+            endPeriod = endPeriod.replace(hour=endPeriod.hour - hours_to_subtract, minute=0, second=0, microsecond=0).timestamp() - 1
+            df_signal = df[(df['hour'].isin(["01", "05", "09", "13", "17", "21"])) & (df['minute'].isin(["00"])) & ( df['unixtime'] <= endPeriod)]
         
         df_with_rsi = self.calculate_rsi(df_signal, period=14)    
         df_final = self.identify_crossovers(df_with_rsi)

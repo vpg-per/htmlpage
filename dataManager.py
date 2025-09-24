@@ -109,11 +109,9 @@ class ServiceManager:
             df = df[ (df['unixtime'] <= endPeriod) & (df['minute'].isin(["00"])) ]
         elif (interval=="4h"):
             df = df[ (df['minute'].isin(["00"])) ]
-            hours_to_subtract = (endPeriod.hour % 4)+1
+            hours_to_subtract = (endPeriod.hour % 4)
             endPeriod = endPeriod.replace(hour=endPeriod.hour - hours_to_subtract, minute=0, second=0, microsecond=0).timestamp() - 1
-            print(endPeriod)
             df = df[ ( df['unixtime'] <= endPeriod) ]
-            print(df)
             df = df.resample('4h', origin='05:00:00-04:00').agg({
                 'unixtime': 'first',                
                 'open': 'first',   # First open in 4-hour period
@@ -128,9 +126,6 @@ class ServiceManager:
             df['hour']= pd.to_datetime(df['unixtime'], unit='s').dt.tz_localize('UTC').dt.tz_convert('America/New_York').dt.strftime('%H')
             df['minute']= pd.to_datetime(df['unixtime'], unit='s').dt.tz_localize('UTC').dt.tz_convert('America/New_York').dt.strftime('%M')
             df['hour'] = np.where(df['hour']=="18", "17", df['hour'])
-            print(df)            
-
-            
 
         df_signal = df.copy()
         df_with_rsi = self.calculate_rsi(df_signal, period=14)    
@@ -139,8 +134,8 @@ class ServiceManager:
         df_sel_cols['interval'] = interval
         df_sel_cols['symbol'] = symbol.replace("%3DF","")
                 
-        # if ((interval == "15m") | (interval == "30m" ) ):
-        #     self.check_forcrossover(df_sel_cols)
+        if ((interval == "15m") | (interval == "30m" ) ):
+            self.check_forcrossover(df_sel_cols)
         
         return df_sel_cols.tail(1)
 
@@ -222,7 +217,6 @@ class ServiceManager:
         #     df_signal = df[(df['hour'].isin(["01", "05", "09", "13", "17", "21"])) & (df['minute'].isin(["00"])) & ( df['unixtime'] <= endPeriod)]
         
         #df_filtered_rows = de_sel_cols = df_sel_cols[(df_sel_cols['bullish_crossover']==True) | (df_sel_cols['bearish_crossover']==True)]
-        print(df_merged)
         # if ((interval == "15m") | (interval == "30m" ) ):
         #     self.check_forcrossover(df_sel_cols)
 

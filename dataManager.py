@@ -30,7 +30,6 @@ class ServiceManager:
         interval: str - Valid intervals: 1m,2m,5m,15m,30m,60m,90m,1h,1d,5d,1wk,1mo,3mo
         """
         url = f"https://query1.finance.yahoo.com/v8/finance/chart/" + symbol
-        
         params = {
             'period1': int(startPeriod),
             'period2': int(endPeriod),
@@ -84,6 +83,67 @@ class ServiceManager:
             print(f"Error parsing data: {e}")
             return None
 
+    def GetStockdata_Byinterval(self, symbol, interval="1d"):
+        df_signal = { }
+                
+        stPeriod = int((datetime.now()- timedelta(days=5)).timestamp()) 
+        endPeriod = datetime.now()
+        minutes_to_subtract = endPeriod.minute % 5
+        endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0)
+        df = self.fetch_stock_data(symbol, stPeriod, endPeriod.timestamp(), interval if (interval != "4h") else "30m")
+        if df is None:
+            print("Failed to fetch data. Please check your internet connection.")
+            return
+        if (interval=="5m"):
+            df = df[(df['unixtime'] <= endPeriod.timestamp()) & (df['minute'].isin(["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"])) ]
+        elif (interval=="15m"):
+            minutes_to_subtract = endPeriod.minute % 15
+            endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0).timestamp() - 1
+            df = df[(df['unixtime'] <= endPeriod) & (df['minute'].isin(["00", "15", "30", "45"])) ]
+        elif (interval=="30m"):
+            minutes_to_subtract = endPeriod.minute % 30
+            endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0).timestamp() - 1
+            df = df[(df['unixtime'] <= endPeriod) & (df['minute'].isin(["00", "30"])) ]
+        elif (interval=="1h"):
+            endPeriod = endPeriod.replace(minute=0, second=0, microsecond=0).timestamp() - 1
+            df = df[ (df['unixtime'] <= endPeriod) & (df['minute'].isin(["00"])) ]
+        elif (interval=="4h"):
+            df = df[ (df['minute'].isin(["00"])) ]
+            hours_to_subtract = (endPeriod.hour % 4)+1
+            endPeriod = endPeriod.replace(hour=endPeriod.hour - hours_to_subtract, minute=0, second=0, microsecond=0).timestamp() - 1
+            print(endPeriod)
+            df = df[ ( df['unixtime'] <= endPeriod) ]
+            print(df)
+            df = df.resample('4h', origin='05:00:00-04:00').agg({
+                'unixtime': 'first',                
+                'open': 'first',   # First open in 4-hour period
+                'high': 'max',     # Highest price in 4-hour period  
+                'low': 'min',      # Lowest price in 4-hour period
+                'close': 'last'   # Last close in 4-hour period
+            }).dropna()
+            df['unixtime'] = pd.to_numeric(df['unixtime'])
+            df['rec_dt']= pd.to_datetime(df['unixtime'], unit='s').dt.tz_localize('UTC').dt.tz_convert('America/New_York').dt.date
+            df['nmonth']= pd.to_datetime(df['unixtime'], unit='s').dt.tz_localize('UTC').dt.tz_convert('America/New_York').dt.strftime('%m')
+            df['nday']= pd.to_datetime(df['unixtime'], unit='s').dt.tz_localize('UTC').dt.tz_convert('America/New_York').dt.strftime('%d')
+            df['hour']= pd.to_datetime(df['unixtime'], unit='s').dt.tz_localize('UTC').dt.tz_convert('America/New_York').dt.strftime('%H')
+            df['minute']= pd.to_datetime(df['unixtime'], unit='s').dt.tz_localize('UTC').dt.tz_convert('America/New_York').dt.strftime('%M')
+            df['hour'] = np.where(df['hour']=="18", "17", df['hour'])
+            print(df)            
+
+            
+
+        df_signal = df.copy()
+        df_with_rsi = self.calculate_rsi(df_signal, period=14)    
+        df_final = self.identify_crossovers(df_with_rsi)
+        df_sel_cols = df_final.loc[:, ['unixtime', 'rec_dt', 'nmonth', 'nday', 'hour', 'minute', 'rsi', 'signal', 'crossover','open','close','high','low']]
+        df_sel_cols['interval'] = interval
+        df_sel_cols['symbol'] = symbol.replace("%3DF","")
+                
+        # if ((interval == "15m") | (interval == "30m" ) ):
+        #     self.check_forcrossover(df_sel_cols)
+        
+        return df_sel_cols.tail(1)
+
     def calculate_rsi(self, df, period=14):
         """
         Calculate RSI (Relative Strength Index)
@@ -128,56 +188,55 @@ class ServiceManager:
         df['bullish_crossover'] = ( (df['rsi'] > df['signal']) & (df['rsi_prev'] <= df['signal_prev'])  )
         # Bearish crossover: RSI crosses below Signal
         df['bearish_crossover'] = ( (df['rsi'] < df['signal']) &  (df['rsi_prev'] >= df['signal_prev']) )
-        
+        df['crossover'] = np.where(df['bullish_crossover'], "Bullish", np.where(df['bearish_crossover'], "Bearish", "Neutral"))
+
         return df
 
-    def calculate_rsi_signal(self, symbol, df, endPeriod, interval="5m"):
-        df_signal = { }
-        if (interval=="5m"):
-            minutes_to_subtract = endPeriod.minute % 5
-            endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0).timestamp() - 1
-            df = df[df['unixtime'] <= endPeriod ]
-            df_signal = df.copy()
-        elif (interval=="15m"):
-            minutes_to_subtract = endPeriod.minute % 15
-            endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0).timestamp() - 1
-            df_signal = df[(df['minute'].isin(["00", "15", "30", "45"])) & (df['unixtime'] <= endPeriod)]
-        elif (interval=="30m"):
-            minutes_to_subtract = endPeriod.minute % 30
-            endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0).timestamp() - 1
-            df_signal = df[(df['minute'].isin(["00", "30"])) & ( df['unixtime'] <= endPeriod)]
-        elif (interval=="1h"):
-            endPeriod = endPeriod.replace(minute=0, second=0, microsecond=0).timestamp() - 1
-            df_signal = df[(df['minute'].isin(["00"])) & (df['unixtime'] <= endPeriod)]
-        elif (interval=="4h"):
-            hours_to_subtract = endPeriod.hour % 4
-            endPeriod = endPeriod.replace(hour=endPeriod.hour - hours_to_subtract, minute=0, second=0, microsecond=0).timestamp() - 1
-            df_signal = df[(df['hour'].isin(["01", "05", "09", "13", "17", "21"])) & (df['minute'].isin(["00"])) & ( df['unixtime'] <= endPeriod)]
-        
-        df_with_rsi = self.calculate_rsi(df_signal, period=14)    
-        df_final = self.identify_crossovers(df_with_rsi)
-        df_sel_cols = df_final.loc[:, ['rec_dt', 'nmonth', 'nday', 'hour', 'minute', 'rsi', 'signal', 'bullish_crossover', 'bearish_crossover','open','close','high','low']]
-        df_sel_cols['interval'] = interval
-        df_sel_cols['symbol'] = symbol.replace("%3DF","")
-        #df_filtered_rows = de_sel_cols = df_sel_cols[(df_sel_cols['bullish_crossover']==True) | (df_sel_cols['bearish_crossover']==True)]
-        
-        if ((interval == "15m") | (interval == "30m" ) ):
-            self.check_forcrossover(df_sel_cols)
+    def calculate_rsi_signal(self, symbol):
+        df_merged = { }
+        df_merged = self.GetStockdata_Byinterval(symbol, "5m")
+        df_temp = self.GetStockdata_Byinterval(symbol, "15m")
+        df_merged=  pd.concat([df_merged, df_temp], ignore_index=True)
+        df_temp = self.GetStockdata_Byinterval(symbol, "30m")
+        df_merged=  pd.concat([df_merged, df_temp], ignore_index=True)
+        df_temp = self.GetStockdata_Byinterval(symbol, "1h")
+        df_merged=  pd.concat([df_merged, df_temp], ignore_index=True)
+        df_temp = self.GetStockdata_Byinterval(symbol, "4h")
+        df_merged=  pd.concat([df_merged, df_temp], ignore_index=True)
 
-        return df_sel_cols.tail(1)
+
+        # elif (interval=="15m"):
+        #     minutes_to_subtract = endPeriod.minute % 15
+        #     endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0).timestamp() - 1
+        #     df_signal = df[(df['minute'].isin(["00", "15", "30", "45"])) & (df['unixtime'] <= endPeriod)]
+        # elif (interval=="30m"):
+        #     minutes_to_subtract = endPeriod.minute % 30
+        #     endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0).timestamp() - 1
+        #     df_signal = df[(df['minute'].isin(["00", "30"])) & ( df['unixtime'] <= endPeriod)]
+        # elif (interval=="1h"):
+        #     endPeriod = endPeriod.replace(minute=0, second=0, microsecond=0).timestamp() - 1
+        #     df_signal = df[(df['minute'].isin(["00"])) & (df['unixtime'] <= endPeriod)]
+        # elif (interval=="4h"):
+        #     hours_to_subtract = endPeriod.hour % 4
+        #     endPeriod = endPeriod.replace(hour=endPeriod.hour - hours_to_subtract, minute=0, second=0, microsecond=0).timestamp() - 1
+        #     df_signal = df[(df['hour'].isin(["01", "05", "09", "13", "17", "21"])) & (df['minute'].isin(["00"])) & ( df['unixtime'] <= endPeriod)]
+        
+        #df_filtered_rows = de_sel_cols = df_sel_cols[(df_sel_cols['bullish_crossover']==True) | (df_sel_cols['bearish_crossover']==True)]
+        print(df_merged)
+        # if ((interval == "15m") | (interval == "30m" ) ):
+        #     self.check_forcrossover(df_sel_cols)
+
+        return df_merged
 
     def check_forcrossover(self, df):
         # This alert is initiated for 15 or 30 minute time frame only
 
         for date, row in df.tail(1).iterrows():
-            if (( row['bullish_crossover'] == True) | ( row['bearish_crossover'] == True)):
+            if (( row['crossover'] == "Bullish") | ( row['crossover'] == "Bearish")):
                 if (self.isExistsinDB(row) == False):
-                    if (( row['bullish_crossover'] == True) ):
-                        message = (f"{row['symbol']} buy signal on {row['interval']} analysis at {row['hour']}:{row['minute']}, o:{row['open']}, c: {row['close']};")
-                        self._message.append( message )
-                    elif ( ( row['bearish_crossover'] == True)):
-                        message = (f"{row['symbol']} sell signal on {row['interval']} analysis at {row['hour']}:{row['minute']}, o:{row['open']}, c: {row['close']};")
-                        self._message.append( message )
+                    tsignal = "buy" if (row['crossover'] == "Bullish") else "sell"
+                    message = (f"{row['symbol']} {tsignal} signal on {row['interval']} analysis at {row['hour']}:{row['minute']}, o:{row['open']}, c: {row['close']};")
+                    self._message.append( message )
                     self.AddRecordtoDB(row)
 
         return
@@ -216,12 +275,11 @@ class ServiceManager:
         conn = None
         try:
             dttimeval = f"{row['nmonth']}-{row['nday']} {row['hour']}:{row['minute']}"
-            crossoverval = "Bullish" if (row['bullish_crossover'] == True) else  "Bearish" if ( row['bearish_crossover'] == True) else "Neutral" 
             with psycopg2.connect(conn_string) as conn:
                 with conn.cursor() as cur:
                     cur.execute(
                         "INSERT INTO rsicrossover (\"triggerTime\", \"interval\", \"crossover\", \"stocksymbol\", \"Open\", \"Close\", \"Low\", \"High\", \"NotificationSent\", \"rsiVal\", \"signal\") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);",
-                        (dttimeval, row['interval'], crossoverval, row['symbol'], row['open'], row['close'], row['low'], row['high'], "TRUE", row['rsi'], row['signal'])
+                        (dttimeval, row['interval'], row['crossover'], row['symbol'], row['open'], row['close'], row['low'], row['high'], "TRUE", row['rsi'], row['signal'])
                     )
         
         except psycopg2.Error as e:

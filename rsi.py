@@ -4,41 +4,20 @@ import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta, timezone
 from time import strftime
-from flask import Flask, json, render_template, request, session, json
+from flask import Flask, json, render_template, request, session
 from dataManager import ServiceManager
 app = Flask(__name__)
 g_message = []
 objMgr = ServiceManager()
 
-def calculate_stock_signal(symbol="SPY", interval="1d"):
+def process_stocksignal(symbol="SPY", interval="1d"):
     global objMgr
     global g_message
     
-    stPeriod = int((datetime.now()- timedelta(days=5)).timestamp()) 
-    endPeriod = datetime.now()
-    df = objMgr.fetch_stock_data(symbol, stPeriod, endPeriod.timestamp(), interval)
-    if df is None:
-        print("Failed to fetch data. Please check your internet connection.")
-        return
-    
-    interval="5m"
-    df_5m = objMgr.calculate_rsi_signal(symbol, df, endPeriod, interval)
-    df_alltfs = df_5m.copy()
-    
-    df_15m = objMgr.calculate_rsi_signal(symbol, df, endPeriod, "15m")
-    df_alltfs = pd.concat([df_alltfs, df_15m], ignore_index=False)
-    
-    df_30m = objMgr.calculate_rsi_signal(symbol, df, endPeriod, "30m")
-    df_alltfs = pd.concat([df_alltfs, df_30m], ignore_index=False)
-
-    df_1h = objMgr.calculate_rsi_signal(symbol, df, endPeriod, "1h")
-    df_alltfs = pd.concat([df_alltfs, df_1h], ignore_index=False)
-
-    df_4h = objMgr.calculate_rsi_signal(symbol, df, endPeriod, "4h")
-    df_alltfs = pd.concat([df_alltfs, df_4h], ignore_index=False)
-
+    df = objMgr.calculate_rsi_signal(symbol)    
     g_message = objMgr.get_message()    
-    return df_alltfs
+
+    return df
 
 
 @app.route('/rangePattern')
@@ -90,13 +69,19 @@ def ReturnPattern():
     #stocksymbols = ['NQ%3DF', 'RTY%3DF', 'GC%3DF']
     df_allsymbols = {}
     for ss in stocksymbols:  
-        df_stock = calculate_stock_signal(ss, interval="5m")
+        df_stock = process_stocksignal(ss)
 
         df_len = len(df_allsymbols)
         if df_len == 0:
             df_allsymbols = df_stock.copy()
         else:
             df_allsymbols = pd.concat([df_allsymbols, df_stock], ignore_index=False)
+
+    # df_ut = {untime: group.reset_index(drop=True) 
+    #          for untime, group in df_allsymbols.groupby('unixtime')}
+    # for untime, dept_df in df_ut.items():
+    #     print(f"\n{untime}:")
+    #     print(dept_df)
 
     if (len(g_message) > 0):
         sentmsg = objMgr.send_chart_alert(g_message)

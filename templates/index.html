@@ -38,12 +38,12 @@
             
             cellcolor = "#000000";
             var celltext = "Neutral";
-            if ( rowData["bullish_crossover"]  == true )
+            if ( rowData["crossover"]  == "Bullish" )
             {
                 cellcolor = "#006400";
                 celltext = "Bullish";                
             }
-            else if ( rowData["bearish_crossover"]  == true )
+            else if ( rowData["crossover"]  == "Bearish" )
             {
                 cellcolor = "#fc5a50";
                 celltext = "Bearish";

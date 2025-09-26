@@ -22,40 +22,40 @@ def process_stocksignal(symbol="SPY", interval="1d"):
 
 @app.route('/rangePattern')
 def RangePattern():
-    pmst = request.args['pmst']
-    pmet = request.args['pmet']
-    curTime = request.args['ct']
+    # pmst = request.args['pmst']
+    # pmet = request.args['pmet']
+    # curTime = request.args['ct']
 
-    datetime_object_local = datetime.fromtimestamp(int(curTime))
+    # datetime_object_local = datetime.fromtimestamp(int(curTime))
     dt = datetime.now()
     print(f"curTime: {dt }")
     global objMgr
     
     stocksymbols = ['SPY']
     #stocksymbols = ['NQ%3DF', 'RTY%3DF', 'GC%3DF']
-    allsymbols_data = []
-    for ss in stocksymbols:  
-        df_mng_stock = objMgr.fetch_stock_data(ss, startPeriod=pmst, endPeriod=pmet, interval="15m")
-        df_rg_stock = objMgr.fetch_stock_data(ss, startPeriod=pmet, endPeriod=curTime, interval="15m")
+    # allsymbols_data = []
+    # for ss in stocksymbols:  
+    #     df_mng_stock = objMgr.fetch_stock_data(ss, startPeriod=pmst, endPeriod=pmet, interval="15m")
+    #     df_rg_stock = objMgr.fetch_stock_data(ss, startPeriod=pmet, endPeriod=curTime, interval="15m")
 
-        pm_open = df_mng_stock[((df_mng_stock['hour']=="04") & (df_mng_stock['minute']=="00"))]['open'].iloc[0]
-        pm_close = df_mng_stock[((df_mng_stock['hour']=="09") & (df_mng_stock['minute']=="15"))]['close'].iloc[0]
-        pm_highest_score = df_mng_stock['high'].max()
-        pm_lowest_score = df_mng_stock['low'].min()
-        pm_data = f"o:{pm_open}, h:{pm_highest_score}, l:{pm_lowest_score}, c:{pm_close}"
+    #     pm_open = df_mng_stock[((df_mng_stock['hour']=="04") & (df_mng_stock['minute']=="00"))]['open'].iloc[0]
+    #     pm_close = df_mng_stock[((df_mng_stock['hour']=="09") & (df_mng_stock['minute']=="15"))]['close'].iloc[0]
+    #     pm_highest_score = df_mng_stock['high'].max()
+    #     pm_lowest_score = df_mng_stock['low'].min()
+    #     pm_data = f"o:{pm_open}, h:{pm_highest_score}, l:{pm_lowest_score}, c:{pm_close}"
 
-        rg_open = df_rg_stock[((df_rg_stock['hour']=="09") & (df_rg_stock['minute']=="30"))]['open'].iloc[0]
-        rg_close = df_rg_stock[((df_rg_stock['hour']=="09") & (df_rg_stock['minute']=="45"))]['close'].iloc[0]
-        rg_highest_score = df_rg_stock['high'].max()
-        rg_lowest_score = df_rg_stock['low'].min()
-        rg_data = f"o:{rg_open}, h:{rg_highest_score}, l:{rg_lowest_score}, c:{rg_close}"
-        allsymbols_data.append(f"{{ \"symbol\": \"{ss}\", \"pmdata\": \"{{{pm_data}}}\", \"rgdata\": \"{{{rg_data}}}\" }}")
+    #     rg_open = df_rg_stock[((df_rg_stock['hour']=="09") & (df_rg_stock['minute']=="30"))]['open'].iloc[0]
+    #     rg_close = df_rg_stock[((df_rg_stock['hour']=="09") & (df_rg_stock['minute']=="45"))]['close'].iloc[0]
+    #     rg_highest_score = df_rg_stock['high'].max()
+    #     rg_lowest_score = df_rg_stock['low'].min()
+    #     rg_data = f"o:{rg_open}, h:{rg_highest_score}, l:{rg_lowest_score}, c:{rg_close}"
+    #     allsymbols_data.append(f"{{ \"symbol\": \"{ss}\", \"pmdata\": \"{{{pm_data}}}\", \"rgdata\": \"{{{rg_data}}}\" }}")
     
-    resultdata = ",".join(allsymbols_data)
-    if(len(allsymbols_data) > 0):
-        sentmsg = objMgr.send_chart_alert(resultdata)
+    # resultdata = ",".join(allsymbols_data)
+    # if(len(allsymbols_data) > 0):
+    #     sentmsg = objMgr.send_chart_alert(resultdata)
 
-    objMgr.DelOldRecordsFromDB()
+    # objMgr.DelOldRecordsFromDB()
     json_string = '{"result": "Processing is complete."}'
     return json_string
 

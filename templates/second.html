@@ -22,7 +22,7 @@
         
         const d = new Date();
         const current_hour = d.getHours()
-        if ( (current_hour >= 9 && current_hour <= 20 ) || ( current_hour >= 13 && current_hour <= 16) )
+        //if ( (current_hour >= 9 && current_hour <= 20 ) || ( current_hour >= 13 && current_hour <= 16) )
         {
             const formattedDate_st = d.getFullYear() +"-" + (d.getMonth() + 1) + "-" + d.getDate() + " 08:00:00Z";
             const formattedDate_pmet = d.getFullYear() +"-" + (d.getMonth() + 1) + "-" + d.getDate() + " 13:30:00Z";
@@ -38,16 +38,16 @@
             //var surl = '/rangePattern?pmst=' + premktst_unixTimeSecs + '&pmet=' + premktet_unixTimeSecs + '&ct=' + rngTime_unixTimeSecs;
             var surl = '/rangePattern';
             setTimeout(() => {
-            $.getJSON('/rangePattern',  
+            $.getJSON(surl,  
                 function (data) { 
                     $("#DataStrategy").html(data.result);
             }); 
             }, "1000");
         }
-        else
-        {
-            $("#DataStrategy").html("Not in time range. Try this method in between 9am and 1145am EST");
-        }	
+        // else
+        // {
+        //     $("#DataStrategy").html("Not in time range. Try this method in between 9am and 1145am EST");
+        // }	
 	});
 </script>
 </body>

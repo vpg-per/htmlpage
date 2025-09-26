@@ -38,7 +38,7 @@
             //var surl = '/rangePattern?pmst=' + premktst_unixTimeSecs + '&pmet=' + premktet_unixTimeSecs + '&ct=' + rngTime_unixTimeSecs;
             var surl = '/rangePattern';
             setTimeout(() => {
-            $.getJSON(surl,  
+            $.getJSON('/rangePattern',  
                 function (data) { 
                     $("#DataStrategy").html(data.result);
             }); 

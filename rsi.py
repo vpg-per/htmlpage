@@ -27,7 +27,8 @@ def RangePattern():
     curTime = request.args['ct']
 
     datetime_object_local = datetime.fromtimestamp(int(curTime))
-    print(f"Local input datetime: {datetime_object_local}")
+    dt = datetime.now()
+    print(f"curTime: {dt }")
     global objMgr
     
     stocksymbols = ['SPY']
@@ -48,7 +49,7 @@ def RangePattern():
         rg_highest_score = df_rg_stock['high'].max()
         rg_lowest_score = df_rg_stock['low'].min()
         rg_data = f"o:{rg_open}, h:{rg_highest_score}, l:{rg_lowest_score}, c:{rg_close}"
-        allsymbols_data.append(f"{{ 'symbol': {ss}, 'pmdata': {{{pm_data}}}, 'rgdata': {{{rg_data}}} }}")
+        allsymbols_data.append(f"{{ \"symbol\": \"{ss}\", \"pmdata\": \"{{{pm_data}}}\", \"rgdata\": \"{{{rg_data}}}\" }}")
     
     resultdata = ",".join(allsymbols_data)
     if(len(allsymbols_data) > 0):

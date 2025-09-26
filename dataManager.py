@@ -28,7 +28,9 @@ class ServiceManager:
         Parameters:
         period: str - Valid periods: 1d,5d,1mo,3mo,6mo,1y,2y,5y,10y,ytd,max
         interval: str - Valid intervals: 1m,2m,5m,15m,30m,60m,90m,1h,1d,5d,1wk,1mo,3mo
-        """
+        """        
+        if (interval == "4h" or interval == "1h"):
+            interval = "30m"
         url = f"https://query1.finance.yahoo.com/v8/finance/chart/" + symbol
         params = {
             'period1': int(startPeriod),
@@ -36,7 +38,6 @@ class ServiceManager:
             'interval': interval,
             'includePrePost': 'true'
         }
-        
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
@@ -90,7 +91,7 @@ class ServiceManager:
         endPeriod = datetime.now()
         minutes_to_subtract = endPeriod.minute % 5
         endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0)
-        df = self.fetch_stock_data(symbol, stPeriod, endPeriod.timestamp(), interval if (interval != "4h") else "30m")
+        df = self.fetch_stock_data(symbol, stPeriod, endPeriod.timestamp(), interval)
         if df is None:
             print("Failed to fetch data. Please check your internet connection.")
             return
@@ -105,12 +106,26 @@ class ServiceManager:
             endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0).timestamp() - 1
             df = df[(df['unixtime'] <= endPeriod) & (df['minute'].isin(["00", "30"])) ]
         elif (interval=="1h"):
+            df = df.resample('1h', origin='05:00:00-04:00').agg({
+                'unixtime': 'first',                
+                'open': 'first',   # First open in 1-hour period
+                'high': 'max',     # Highest price in 1-hour period  
+                'low': 'min',      # Lowest price in 1-hour period
+                'close': 'last'   # Last close in 1-hour period
+            }).dropna()
             endPeriod = endPeriod.replace(minute=0, second=0, microsecond=0).timestamp() - 1
-            df = df[ (df['unixtime'] <= endPeriod) & (df['minute'].isin(["00"])) ]
+            df = df[ (df['unixtime'] <= endPeriod) ]
+            df['unixtime'] = pd.to_numeric(df['unixtime'])
+            df['rec_dt']= pd.to_datetime(df['unixtime'], unit='s').dt.tz_localize('UTC').dt.tz_convert('America/New_York').dt.date
+            df['nmonth']= pd.to_datetime(df['unixtime'], unit='s').dt.tz_localize('UTC').dt.tz_convert('America/New_York').dt.strftime('%m')
+            df['nday']= pd.to_datetime(df['unixtime'], unit='s').dt.tz_localize('UTC').dt.tz_convert('America/New_York').dt.strftime('%d')
+            df['hour']= pd.to_datetime(df['unixtime'], unit='s').dt.tz_localize('UTC').dt.tz_convert('America/New_York').dt.strftime('%H')
+            df['minute']= pd.to_datetime(df['unixtime'], unit='s').dt.tz_localize('UTC').dt.tz_convert('America/New_York').dt.strftime('%M')
         elif (interval=="4h"):
             df = df[ (df['minute'].isin(["00"])) ]
             hours_to_subtract = (endPeriod.hour % 4)
             endPeriod = endPeriod.replace(hour=endPeriod.hour - hours_to_subtract, minute=0, second=0, microsecond=0).timestamp() - 1
+            print(f"{endPeriod}")
             df = df[ ( df['unixtime'] <= endPeriod) ]
             df = df.resample('4h', origin='05:00:00-04:00').agg({
                 'unixtime': 'first',                
@@ -199,27 +214,6 @@ class ServiceManager:
         df_temp = self.GetStockdata_Byinterval(symbol, "4h")
         df_merged=  pd.concat([df_merged, df_temp], ignore_index=True)
 
-
-        # elif (interval=="15m"):
-        #     minutes_to_subtract = endPeriod.minute % 15
-        #     endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0).timestamp() - 1
-        #     df_signal = df[(df['minute'].isin(["00", "15", "30", "45"])) & (df['unixtime'] <= endPeriod)]
-        # elif (interval=="30m"):
-        #     minutes_to_subtract = endPeriod.minute % 30
-        #     endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0).timestamp() - 1
-        #     df_signal = df[(df['minute'].isin(["00", "30"])) & ( df['unixtime'] <= endPeriod)]
-        # elif (interval=="1h"):
-        #     endPeriod = endPeriod.replace(minute=0, second=0, microsecond=0).timestamp() - 1
-        #     df_signal = df[(df['minute'].isin(["00"])) & (df['unixtime'] <= endPeriod)]
-        # elif (interval=="4h"):
-        #     hours_to_subtract = endPeriod.hour % 4
-        #     endPeriod = endPeriod.replace(hour=endPeriod.hour - hours_to_subtract, minute=0, second=0, microsecond=0).timestamp() - 1
-        #     df_signal = df[(df['hour'].isin(["01", "05", "09", "13", "17", "21"])) & (df['minute'].isin(["00"])) & ( df['unixtime'] <= endPeriod)]
-        
-        #df_filtered_rows = de_sel_cols = df_sel_cols[(df_sel_cols['bullish_crossover']==True) | (df_sel_cols['bearish_crossover']==True)]
-        # if ((interval == "15m") | (interval == "30m" ) ):
-        #     self.check_forcrossover(df_sel_cols)
-
         return df_merged
 
     def check_forcrossover(self, df):
@@ -287,6 +281,7 @@ class ServiceManager:
             nowdt = datetime.now().date()- timedelta(days=1)
             dttimeval = f"%{nowdt.strftime('%m')}-{nowdt.strftime('%d')}%"
             delete_sql = "DELETE FROM rsicrossover WHERE \"triggerTime\" like %s;"
+            print(delete_sql)
             with psycopg2.connect(conn_string) as conn:
                 with conn.cursor() as cur:
                     cur.execute(delete_sql, (dttimeval,))

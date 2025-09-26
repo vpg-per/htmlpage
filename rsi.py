@@ -34,25 +34,25 @@ def RangePattern():
     #stocksymbols = ['NQ%3DF', 'RTY%3DF', 'GC%3DF']
     allsymbols_data = []
     for ss in stocksymbols:  
-        df_mng_stock = objMgr.fetch_stock_data(ss, startPeriod=pmst, endPeriod=pmet, interval="5m")
-        df_rg_stock = objMgr.fetch_stock_data(ss, startPeriod=pmet, endPeriod=curTime, interval="5m")
-        
+        df_mng_stock = objMgr.fetch_stock_data(ss, startPeriod=pmst, endPeriod=pmet, interval="15m")
+        df_rg_stock = objMgr.fetch_stock_data(ss, startPeriod=pmet, endPeriod=curTime, interval="15m")
+
         pm_open = df_mng_stock[((df_mng_stock['hour']=="04") & (df_mng_stock['minute']=="00"))]['open'].iloc[0]
-        pm_close = df_mng_stock[((df_mng_stock['hour']=="09") & (df_mng_stock['minute']=="25"))]['close'].iloc[0]
+        pm_close = df_mng_stock[((df_mng_stock['hour']=="09") & (df_mng_stock['minute']=="15"))]['close'].iloc[0]
         pm_highest_score = df_mng_stock['high'].max()
         pm_lowest_score = df_mng_stock['low'].min()
         pm_data = f"o:{pm_open}, h:{pm_highest_score}, l:{pm_lowest_score}, c:{pm_close}"
-        
+
         rg_open = df_rg_stock[((df_rg_stock['hour']=="09") & (df_rg_stock['minute']=="30"))]['open'].iloc[0]
-        rg_close = df_rg_stock[((df_rg_stock['hour']=="09") & (df_rg_stock['minute']=="55"))]['close'].iloc[0]
+        rg_close = df_rg_stock[((df_rg_stock['hour']=="09") & (df_rg_stock['minute']=="45"))]['close'].iloc[0]
         rg_highest_score = df_rg_stock['high'].max()
         rg_lowest_score = df_rg_stock['low'].min()
         rg_data = f"o:{rg_open}, h:{rg_highest_score}, l:{rg_lowest_score}, c:{rg_close}"
         allsymbols_data.append(f"{{ 'symbol': {ss}, 'pmdata': {{{pm_data}}}, 'rgdata': {{{rg_data}}} }}")
-
+    
+    resultdata = ",".join(allsymbols_data)
     if(len(allsymbols_data) > 0):
-        sentmsg = objMgr.send_chart_alert(g_message)
-        print(sentmsg)
+        sentmsg = objMgr.send_chart_alert(resultdata)
 
     objMgr.DelOldRecordsFromDB()
     json_string = '{"result": "Processing is complete."}'
@@ -76,12 +76,6 @@ def ReturnPattern():
             df_allsymbols = df_stock.copy()
         else:
             df_allsymbols = pd.concat([df_allsymbols, df_stock], ignore_index=False)
-
-    # df_ut = {untime: group.reset_index(drop=True) 
-    #          for untime, group in df_allsymbols.groupby('unixtime')}
-    # for untime, dept_df in df_ut.items():
-    #     print(f"\n{untime}:")
-    #     print(dept_df)
 
     if (len(g_message) > 0):
         sentmsg = objMgr.send_chart_alert(g_message)

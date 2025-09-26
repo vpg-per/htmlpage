@@ -125,7 +125,6 @@ class ServiceManager:
             df = df[ (df['minute'].isin(["00"])) ]
             hours_to_subtract = (endPeriod.hour % 4)
             endPeriod = endPeriod.replace(hour=endPeriod.hour - hours_to_subtract, minute=0, second=0, microsecond=0).timestamp() - 1
-            print(f"{endPeriod}")
             df = df[ ( df['unixtime'] <= endPeriod) ]
             df = df.resample('4h', origin='05:00:00-04:00').agg({
                 'unixtime': 'first',                
@@ -281,7 +280,6 @@ class ServiceManager:
             nowdt = datetime.now().date()- timedelta(days=1)
             dttimeval = f"%{nowdt.strftime('%m')}-{nowdt.strftime('%d')}%"
             delete_sql = "DELETE FROM rsicrossover WHERE \"triggerTime\" like %s;"
-            print(delete_sql)
             with psycopg2.connect(conn_string) as conn:
                 with conn.cursor() as cur:
                     cur.execute(delete_sql, (dttimeval,))

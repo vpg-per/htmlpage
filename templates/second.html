@@ -20,19 +20,19 @@
 <script>
 	$(document).ready(function () { 
         
-        const d = new Date();
-        const current_hour = d.getHours()
+        // const d = new Date();
+        // const current_hour = d.getHours()
         //if ( (current_hour >= 9 && current_hour <= 20 ) || ( current_hour >= 13 && current_hour <= 16) )
         {
-            const formattedDate_st = d.getFullYear() +"-" + (d.getMonth() + 1) + "-" + d.getDate() + " 08:00:00Z";
-            const formattedDate_pmet = d.getFullYear() +"-" + (d.getMonth() + 1) + "-" + d.getDate() + " 13:30:00Z";
-            const formattedDate_rnget = d.getFullYear() +"-" + (d.getMonth() + 1) + "-" + d.getDate() + " 14:00:00Z";
-            var dateObject = new Date(formattedDate_st);
-            const premktst_unixTimeSecs = Math.floor(dateObject.getTime() / 1000);
-            dateObject = new Date(formattedDate_pmet);
-            const premktet_unixTimeSecs = Math.floor(dateObject.getTime() / 1000);
-            dateObject = new Date(formattedDate_rnget);
-            const rngTime_unixTimeSecs = Math.floor( dateObject.getTime() / 1000);
+            // const formattedDate_st = d.getFullYear() +"-" + (d.getMonth() + 1) + "-" + d.getDate() + " 08:00:00Z";
+            // const formattedDate_pmet = d.getFullYear() +"-" + (d.getMonth() + 1) + "-" + d.getDate() + " 13:30:00Z";
+            // const formattedDate_rnget = d.getFullYear() +"-" + (d.getMonth() + 1) + "-" + d.getDate() + " 14:00:00Z";
+            // var dateObject = new Date(formattedDate_st);
+            // const premktst_unixTimeSecs = Math.floor(dateObject.getTime() / 1000);
+            // dateObject = new Date(formattedDate_pmet);
+            // const premktet_unixTimeSecs = Math.floor(dateObject.getTime() / 1000);
+            // dateObject = new Date(formattedDate_rnget);
+            // const rngTime_unixTimeSecs = Math.floor( dateObject.getTime() / 1000);
             //const currentUnixTimestamp = Math.floor(Date.now() / 1000);
             //alert(premktst_unixTimeSecs + "," + premktet_unixTimeSecs + "," + curTime_unixTimeSecs + "," + current_hour); 
             //var surl = '/rangePattern?pmst=' + premktst_unixTimeSecs + '&pmet=' + premktet_unixTimeSecs + '&ct=' + rngTime_unixTimeSecs;

@@ -22,7 +22,7 @@
         
         const d = new Date();
         const current_hour = d.getHours()
-        if ( (current_hour >= 9 && current_hour <= 12 ) || ( current_hour >= 13 && current_hour <= 16) )
+        if ( (current_hour >= 9 && current_hour <= 20 ) || ( current_hour >= 13 && current_hour <= 16) )
         {
             const formattedDate_st = d.getFullYear() +"-" + (d.getMonth() + 1) + "-" + d.getDate() + " 08:00:00Z";
             const formattedDate_pmet = d.getFullYear() +"-" + (d.getMonth() + 1) + "-" + d.getDate() + " 13:30:00Z";

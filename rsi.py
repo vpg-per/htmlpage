@@ -28,20 +28,20 @@ def RangePattern():
 
     # datetime_object_local = datetime.fromtimestamp(int(curTime))
     dt = datetime.now()
-    pmst_string = (f"{dt.date()} 4:00:00 -0400")
+    pmst_string = (f"{dt.date()- timedelta(days=1)} 4:00:00 -0400")
     pmst_dt = datetime.strptime(pmst_string, '%Y-%m-%d %H:%M:%S %z')
     print(f"pmstTime: { pmst_dt }, unixtime: {pmst_dt.timestamp()}")
 
-    pmet_string = (f"{dt.date()} 9:15:00 -0400")
+    pmet_string = (f"{dt.date()- timedelta(days=1)} 9:15:00 -0400")
     pmet_dt = datetime.strptime(pmet_string, '%Y-%m-%d %H:%M:%S %z')
     print(f"pmetTime: { pmet_dt }, unixtime: {pmet_dt.timestamp()}")
     print(f"{ int(datetime.now().timestamp())}")
 
-    regst_string = (f"{dt.date()} 9:30:00 -0400")
+    regst_string = (f"{dt.date()- timedelta(days=1)} 9:30:00 -0400")
     regst_dt = datetime.strptime(regst_string, '%Y-%m-%d %H:%M:%S %z')
     print(f"pmstTime: { regst_dt }, unixtime: {regst_dt.timestamp()}")
 
-    reget_string = (f"{dt.date()} 10:00:00 -0400")
+    reget_string = (f"{dt.date()- timedelta(days=5)} 10:00:00 -0400")
     reget_dt = datetime.strptime(reget_string, '%Y-%m-%d %H:%M:%S %z')
     print(f"pmetTime: { reget_dt }, unixtime: {reget_dt.timestamp()}")
     print(f"{ int(datetime.now().timestamp())}")

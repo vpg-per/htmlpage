@@ -32,26 +32,41 @@ def RangePattern():
     pmst_dt = datetime.strptime(pmst_string, '%Y-%m-%d %H:%M:%S %z')
     print(f"pmstTime: { pmst_dt }, unixtime: {pmst_dt.timestamp()}")
 
-    pmet_string = (f"{dt.date()} 9:45:00 -0400")
+    pmet_string = (f"{dt.date()} 9:15:00 -0400")
     pmet_dt = datetime.strptime(pmet_string, '%Y-%m-%d %H:%M:%S %z')
     print(f"pmetTime: { pmet_dt }, unixtime: {pmet_dt.timestamp()}")
     print(f"{ int(datetime.now().timestamp())}")
+
+    regst_string = (f"{dt.date()} 9:30:00 -0400")
+    regst_dt = datetime.strptime(regst_string, '%Y-%m-%d %H:%M:%S %z')
+    print(f"pmstTime: { regst_dt }, unixtime: {regst_dt.timestamp()}")
+
+    reget_string = (f"{dt.date()} 9:45:00 -0400")
+    reget_dt = datetime.strptime(reget_string, '%Y-%m-%d %H:%M:%S %z')
+    print(f"pmetTime: { reget_dt }, unixtime: {reget_dt.timestamp()}")
+    print(f"{ int(datetime.now().timestamp())}")
+
+    c_reget = reget_dt.timestamp()
+    if ( int(datetime.now().timestamp()) < c_reget):
+        c_reget = int(datetime.now().timestamp())
+
 
     global objMgr
     
     stocksymbols = ['SPY']
     #stocksymbols = ['NQ%3DF', 'RTY%3DF', 'GC%3DF']
-    # allsymbols_data = []
-    # for ss in stocksymbols:  
-    #     df_mng_stock = objMgr.fetch_stock_data(ss, startPeriod=pmst, endPeriod=pmet, interval="15m")
-    #     df_rg_stock = objMgr.fetch_stock_data(ss, startPeriod=pmet, endPeriod=curTime, interval="15m")
-
-    #     pm_open = df_mng_stock[((df_mng_stock['hour']=="04") & (df_mng_stock['minute']=="00"))]['open'].iloc[0]
-    #     pm_close = df_mng_stock[((df_mng_stock['hour']=="09") & (df_mng_stock['minute']=="15"))]['close'].iloc[0]
-    #     pm_highest_score = df_mng_stock['high'].max()
-    #     pm_lowest_score = df_mng_stock['low'].min()
-    #     pm_data = f"o:{pm_open}, h:{pm_highest_score}, l:{pm_lowest_score}, c:{pm_close}"
-
+    allsymbols_data = []
+    for ss in stocksymbols:  
+        df_mng_stock = objMgr.fetch_stock_data(ss, startPeriod=pmst_dt.timestamp(), endPeriod=regst_dt.timestamp(), interval="15m")
+        #df_rg_stock = objMgr.fetch_stock_data(ss, startPeriod=regst_dt.timestamp(), endPeriod=c_reget, interval="15m")
+        print(df_mng_stock)
+        
+        pm_open = df_mng_stock[((df_mng_stock['hour']=="04") & (df_mng_stock['minute']=="00"))]['open'].iloc[0]
+        pm_close = df_mng_stock[((df_mng_stock['hour']=="09") & (df_mng_stock['minute']=="15"))]['close'].iloc[0]
+        pm_highest_score = df_mng_stock['high'].max()
+        pm_lowest_score = df_mng_stock['low'].min()
+        pm_data = f"o:{pm_open}, h:{pm_highest_score}, l:{pm_lowest_score}, c:{pm_close}"
+        print(pm_data)
     #     rg_open = df_rg_stock[((df_rg_stock['hour']=="09") & (df_rg_stock['minute']=="30"))]['open'].iloc[0]
     #     rg_close = df_rg_stock[((df_rg_stock['hour']=="09") & (df_rg_stock['minute']=="45"))]['close'].iloc[0]
     #     rg_highest_score = df_rg_stock['high'].max()

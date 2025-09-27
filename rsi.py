@@ -22,37 +22,26 @@ def process_stocksignal(symbol="SPY", interval="1d"):
 
 @app.route('/rangePattern')
 def RangePattern():
-    # pmst = request.args['pmst']
-    # pmet = request.args['pmet']
-    # curTime = request.args['ct']
-
-    # datetime_object_local = datetime.fromtimestamp(int(curTime))
     dt = datetime.now()
-    pmst_string = (f"{dt.date()- timedelta(days=1)} 4:00:00 -0400")
+    #pmst_string = (f"{dt.date()- timedelta(days=1)} 4:00:00 -0400")
+    pmst_string = (f"{dt.date()} 4:00:00 -0400")
     pmst_dt = datetime.strptime(pmst_string, '%Y-%m-%d %H:%M:%S %z')
-    print(f"pmstTime: { pmst_dt }, unixtime: {pmst_dt.timestamp()}")
+    #print(f"pmstTime: { pmst_dt }, unixtime: {pmst_dt.timestamp()}")
 
-    pmet_string = (f"{dt.date()- timedelta(days=1)} 9:15:00 -0400")
-    pmet_dt = datetime.strptime(pmet_string, '%Y-%m-%d %H:%M:%S %z')
-    print(f"pmetTime: { pmet_dt }, unixtime: {pmet_dt.timestamp()}")
-    print(f"{ int(datetime.now().timestamp())}")
-
-    regst_string = (f"{dt.date()- timedelta(days=1)} 9:30:00 -0400")
+    regst_string = (f"{dt.date()} 9:30:00 -0400")
     regst_dt = datetime.strptime(regst_string, '%Y-%m-%d %H:%M:%S %z')
-    print(f"pmstTime: { regst_dt }, unixtime: {regst_dt.timestamp()}")
+    #print(f"pmstTime: { regst_dt }, unixtime: {regst_dt.timestamp()}")
 
-    reget_string = (f"{dt.date()- timedelta(days=1)} 10:00:00 -0400")
+    reget_string = (f"{dt.date()} 10:00:00 -0400")
     reget_dt = datetime.strptime(reget_string, '%Y-%m-%d %H:%M:%S %z')
-    print(f"pmetTime: { reget_dt }, unixtime: {reget_dt.timestamp()}")
-    print(f"{ int(datetime.now().timestamp())}")
+    #print(f"pmetTime: { reget_dt }, unixtime: {reget_dt.timestamp()}")
+    #print(f"{ int(datetime.now().timestamp())}")
 
     c_reget = reget_dt.timestamp()
     if ( int(datetime.now().timestamp()) < c_reget):
         c_reget = int(datetime.now().timestamp())
 
-
-    global objMgr
-    
+    global objMgr    
     stocksymbols = ['SPY']
     #stocksymbols = ['NQ%3DF', 'RTY%3DF', 'GC%3DF']
     allsymbols_data = []
@@ -66,7 +55,7 @@ def RangePattern():
             pm_close = df_mng_stock['close'].iloc[-1]
             pm_highest_score = df_mng_stock['high'].max()
             pm_lowest_score = df_mng_stock['low'].min()
-            pm_data = f"o:{pm_open}, h:{pm_highest_score}, l:{pm_lowest_score}, c:{pm_close}"
+            pm_data = f"O:{pm_open}, C:{pm_close}, L:{pm_lowest_score}, H:{pm_highest_score}"
     
         df_rg_stock = df[ (df['unixtime'] >= regst_dt.timestamp() - 1) ]
         if (len(df_rg_stock) > 0):
@@ -74,14 +63,14 @@ def RangePattern():
             rg_close = df_rg_stock['close'].iloc[-1]
             rg_highest_score = df_rg_stock['high'].max()
             rg_lowest_score = df_rg_stock['low'].min()
-            rg_data = f"o:{rg_open}, h:{rg_highest_score}, l:{rg_lowest_score}, c:{rg_close}"
+            rg_data = f"O:{rg_open}, C:{rg_close}, L:{rg_lowest_score}, H:{rg_highest_score}"
         allsymbols_data.append(f"{{ \"symbol\": \"{ss}\", \"pmdata\": \"{{{pm_data}}}\", \"rgdata\": \"{{{rg_data}}}\" }}")
     
     resultdata = ",".join(allsymbols_data)
-    if(pm_data != "" and rg_data != ""):
+    if(pm_data != "" or rg_data != ""):
         sentmsg = objMgr.send_chart_alert(resultdata)
 
-    # objMgr.DelOldRecordsFromDB()
+    objMgr.DelOldRecordsFromDB()
     json_string = '{"result": "Processing is complete."}'
     return resultdata
 

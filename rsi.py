@@ -28,9 +28,9 @@ def RangePattern():
 
     # datetime_object_local = datetime.fromtimestamp(int(curTime))
     dt = datetime.now()
-    time_string = (f"{dt.date()} 1:00:00")
-    dt_from_string = datetime.strptime(time_string, '%Y-%m-%d %H:%M:%S')
-    print(f"curTime: { dt_from_string }")
+    time_string = (f"{dt.date()} 1:00:00 -0400")
+    dt_from_string = datetime.strptime(time_string, '%Y-%m-%d %H:%M:%S %z')
+    print(f"curTime: { dt_from_string }, unixtime: {dt_from_string.timestamp()}")
     global objMgr
     
     stocksymbols = ['SPY']

@@ -287,6 +287,3 @@ class ServiceManager:
         except psycopg2.Error as e:
             print(f"Error connecting to or querying the database: {e}")
         return
-
-
-

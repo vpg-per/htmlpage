@@ -22,7 +22,12 @@ class FifteenMinuteSupportResistance:
             days_back (int): Number of days of 15-min data to fetch
         """
         self.symbol = symbol
-        self.days_back = days_back
+        if datetime.now().weekday() == 5 or datetime.now().weekday() == 6:
+            self.days_back = 3
+        elif datetime.now().weekday() == 0 or datetime.now().weekday() == 1:
+            self.days_back = 4
+        else:
+            self.days_back = days_back
         self.data = None
         self.current_price = None
         
@@ -33,7 +38,7 @@ class FifteenMinuteSupportResistance:
             
             # For 15-min data with extended hours
             if self.days_back <= 7:
-                period = "3d"
+                period = "7d"
             elif self.days_back <= 30:
                 period = "1mo"
             else:
@@ -64,10 +69,8 @@ class FifteenMinuteSupportResistance:
                     cutoff_date = pytz.timezone('America/New_York').localize(cutoff_date)
             
             self.data = self.data[self.data.index >= cutoff_date]
-            
             # Add session type classification
             self.data = self.classify_trading_sessions()
-            
             self.current_price = self.data['Close'].iloc[-1]
             
             # Count different session types
@@ -1123,45 +1126,3 @@ def scalping_example():
 
     return scalper
 
-HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scalping Analysis for {{ symbol }}</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 12px; }
-        h1, h2 { color: #333; }
-        .container { display: flex; }
-        .summary { margin-right: 30px; }
-        .chart img { max-width: 100%; border: 1px solid #ccc; }
-        table { border-collapse: collapse; margin-top: 15px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
-    </style>
-</head>
-<body>    
-    <div class="container">
-        <div class="summary">        
-            <h3>Scalping Analysis for {{ summary.symbol }}</h3>
-            Current Price: ${{ "%.2f"|format(summary.current_price) }} | Time: {{ summary.timestamp }}
-            {% if summary.gap_info %}
-            <h4>Pre-Market & Gap Analysis</h4>
-            <table>
-                <tr><th>Metric</th><th>Value</th></tr>
-                <tr><td>Gap Type</td><td>{{ summary.gap_info.gap_type }}</td></tr>
-                <tr><td>Gap Amount</td><td>${{ "%.2f"|format(summary.gap_info.gap_amount) }}</td></tr>
-                <tr><td>Gap Percent</td><td>{{ "%.2f"|format(summary.gap_info.gap_percent) }}%</td></tr>
-            </table>
-            {% endif %}
-
-        </div>
-        <div class="chart">
-            <h2>15-Minute Chart</h2>
-            <img src="data:image/png;base64,{{ chart_image }}" alt="15-Minute Chart">
-        </div>
-    </div>
-</body>
-</html>
-"""

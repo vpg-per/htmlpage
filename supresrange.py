@@ -158,16 +158,15 @@ class FifteenMinuteSupportResistance:
                 session_open = today_data['Open'].iloc[0]
                 session_high = today_data['High'].max()
                 session_low = today_data['Low'].min()
-                
                 # Opening range (first 30 minutes - 2 bars of 15min data)
                 opening_range = today_data.head(2)
                 or_high = opening_range['High'].max()
                 or_low = opening_range['Low'].min()
                 
                 return {
-                    'session_open': session_open,
-                    'session_high': session_high,
-                    'session_low': session_low,
+                    'session_open': round(session_open,2),
+                    'session_high': round(session_high,2),
+                    'session_low': round(session_low,2),
                     'opening_range_high': or_high,
                     'opening_range_low': or_low,
                     'opening_range_mid': (or_high + or_low) / 2
@@ -676,12 +675,12 @@ class FifteenMinuteSupportResistance:
         session_data = self.session_levels()
         if session_data:
             # Regular session levels
-            if session_data['regular_high']:
-                ax1.axhline(y=session_data['regular_high'], color='red', linestyle='-', 
-                           linewidth=2.5, alpha=0.9, label='Regular High', zorder=5)
-            if session_data['regular_low']:
-                ax1.axhline(y=session_data['regular_low'], color='green', linestyle='-', 
-                           linewidth=2.5, alpha=0.9, label='Regular Low', zorder=5)
+            if session_data['session_high']:
+                ax1.axhline(y=session_data['session_high'], color='red', linestyle='-', 
+                           linewidth=2.5, alpha=0.9, label='session High', zorder=5)
+            if session_data['session_low']:
+                ax1.axhline(y=session_data['session_low'], color='green', linestyle='-', 
+                           linewidth=2.5, alpha=0.9, label='session Low', zorder=5)
             
             # Opening range
             if session_data['opening_range_high'] and session_data['opening_range_low']:
@@ -695,18 +694,18 @@ class FifteenMinuteSupportResistance:
                 # Highlight opening range area
                 ax1.fill_between(times, or_low, or_high, alpha=0.1, color='orange', zorder=1)
             
-            # Pre-market levels
-            if session_data['premarket']:
-                pm = session_data['premarket']
-                if pm.get('pm_high'):
-                    ax1.axhline(y=pm['pm_high'], color='magenta', linestyle='-.', 
-                               linewidth=2, alpha=0.8, label='PM High', zorder=4)
-                if pm.get('pm_low'):
-                    ax1.axhline(y=pm['pm_low'], color='cyan', linestyle='-.', 
-                               linewidth=2, alpha=0.8, label='PM Low', zorder=4)
-                if pm.get('pm_vwap'):
-                    ax1.axhline(y=pm['pm_vwap'], color='purple', linestyle=':', 
-                               linewidth=1.5, alpha=0.7, label='PM VWAP', zorder=3)
+            # # Pre-market levels
+            # if session_data['premarket']:
+            #     pm = session_data['premarket']
+            #     if pm.get('pm_high'):
+            #         ax1.axhline(y=pm['pm_high'], color='magenta', linestyle='-.', 
+            #                    linewidth=2, alpha=0.8, label='PM High', zorder=4)
+            #     if pm.get('pm_low'):
+            #         ax1.axhline(y=pm['pm_low'], color='cyan', linestyle='-.', 
+            #                    linewidth=2, alpha=0.8, label='PM Low', zorder=4)
+            #     if pm.get('pm_vwap'):
+            #         ax1.axhline(y=pm['pm_vwap'], color='purple', linestyle=':', 
+            #                    linewidth=1.5, alpha=0.7, label='PM VWAP', zorder=3)
         
         # Pivot points
         pivot_data = self.fifteen_min_pivot_points()

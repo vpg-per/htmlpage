@@ -33,22 +33,8 @@ HTML_TEMPLATE = """
 </head>
 <body>    
     <div class="container">
-        <div class="summary">        
-            <h3>Scalping Analysis for {{ summary.symbol }}</h3>
-            Current Price: ${{ "%.2f"|format(summary.current_price) }} | Time: {{ summary.timestamp }}
-            {% if summary.gap_info %}
-            <h4>Pre-Market & Gap Analysis</h4>
-            <table>
-                <tr><th>Metric</th><th>Value</th></tr>
-                <tr><td>Gap Type</td><td>{{ summary.gap_info.gap_type }}</td></tr>
-                <tr><td>Gap Amount</td><td>${{ "%.2f"|format(summary.gap_info.gap_amount) }}</td></tr>
-                <tr><td>Gap Percent</td><td>{{ "%.2f"|format(summary.gap_info.gap_percent) }}%</td></tr>
-            </table>
-            {% endif %}
-
-        </div>
         <div class="chart">
-            <h2>15-Minute Chart</h2>
+            <h6>Scalping Analysis for {{ summary.symbol }} -- 15-Minute Chart</h6>
             <img src="data:image/png;base64,{{ chart_image }}" alt="15-Minute Chart">
         </div>
     </div>

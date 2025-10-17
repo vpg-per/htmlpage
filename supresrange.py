@@ -25,7 +25,7 @@ class FifteenMinuteSupportResistance:
         if datetime.now().weekday() == 5 or datetime.now().weekday() == 6:
             self.days_back = 3
         elif datetime.now().weekday() == 0 or datetime.now().weekday() == 1:
-            self.days_back = 4
+            self.days_back = 3
         else:
             self.days_back = days_back
         self.data = None
@@ -164,9 +164,9 @@ class FifteenMinuteSupportResistance:
                 or_low = opening_range['Low'].min()
                 
                 return {
-                    'session_open': round(session_open,2),
-                    'session_high': round(session_high,2),
-                    'session_low': round(session_low,2),
+                    'session_open': session_open,
+                    'session_high': session_high,
+                    'session_low': session_low,
                     'opening_range_high': or_high,
                     'opening_range_low': or_low,
                     'opening_range_mid': (or_high + or_low) / 2
@@ -675,12 +675,12 @@ class FifteenMinuteSupportResistance:
         session_data = self.session_levels()
         if session_data:
             # Regular session levels
-            if session_data['session_high']:
-                ax1.axhline(y=session_data['session_high'], color='red', linestyle='-', 
-                           linewidth=2.5, alpha=0.9, label='session High', zorder=5)
-            if session_data['session_low']:
-                ax1.axhline(y=session_data['session_low'], color='green', linestyle='-', 
-                           linewidth=2.5, alpha=0.9, label='session Low', zorder=5)
+            # if session_data['session_high']:
+            #     ax1.axhline(y=session_data['session_high'], color='red', linestyle='-', 
+            #                linewidth=2.5, alpha=0.9, label='session High', zorder=5)
+            # if session_data['session_low']:
+            #     ax1.axhline(y=session_data['session_low'], color='green', linestyle='-', 
+            #                linewidth=2.5, alpha=0.9, label='session Low', zorder=5)
             
             # Opening range
             if session_data['opening_range_high'] and session_data['opening_range_low']:
@@ -714,16 +714,16 @@ class FifteenMinuteSupportResistance:
                        linewidth=2.5, alpha=0.9, label='Pivot Point', zorder=5)
             
             # Standard pivot levels
-            colors_r = ['darkred', 'red', 'lightcoral']
-            colors_s = ['darkgreen', 'green', 'lightgreen']
+            # colors_r = ['darkred', 'red', 'lightcoral']
+            # colors_s = ['darkgreen', 'green', 'lightgreen']
             
-            for i, resistance in enumerate(pivot_data['standard']['resistance'][:3]):
-                ax1.axhline(y=resistance, color=colors_r[i], linestyle=':', 
-                           linewidth=2, alpha=0.7, label=f'R{i+1}' if i == 0 else '', zorder=3)
+            # for i, resistance in enumerate(pivot_data['standard']['resistance'][:3]):
+            #     ax1.axhline(y=resistance, color=colors_r[i], linestyle=':', 
+            #                linewidth=2, alpha=0.7, label=f'R{i+1}' if i == 0 else '', zorder=3)
                 
-            for i, support in enumerate(pivot_data['standard']['support'][:3]):
-                ax1.axhline(y=support, color=colors_s[i], linestyle=':', 
-                           linewidth=2, alpha=0.7, label=f'S{i+1}' if i == 0 else '', zorder=3)
+            # for i, support in enumerate(pivot_data['standard']['support'][:3]):
+            #     ax1.axhline(y=support, color=colors_s[i], linestyle=':', 
+            #                linewidth=2, alpha=0.7, label=f'S{i+1}' if i == 0 else '', zorder=3)
             
             # Previous day levels
             prev = pivot_data['previous_session']

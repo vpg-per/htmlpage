@@ -687,9 +687,9 @@ class FifteenMinuteSupportResistance:
                 or_high = session_data['opening_range_high']
                 or_low = session_data['opening_range_low']
                 ax1.axhline(y=or_high, color='orange', linestyle='--', 
-                           linewidth=2, alpha=0.8, label='OR High', zorder=4)
+                           linewidth=2, alpha=0.8, label='OR-H', zorder=4)
                 ax1.axhline(y=or_low, color='orange', linestyle='--', 
-                           linewidth=2, alpha=0.8, label='OR Low', zorder=4)
+                           linewidth=2, alpha=0.8, label='OR-L', zorder=4)
                 
                 # Highlight opening range area
                 ax1.fill_between(times, or_low, or_high, alpha=0.1, color='orange', zorder=1)
@@ -711,7 +711,7 @@ class FifteenMinuteSupportResistance:
         pivot_data = self.fifteen_min_pivot_points()
         if pivot_data:
             ax1.axhline(y=pivot_data['pivot'], color='blue', linestyle='-', 
-                       linewidth=2.5, alpha=0.9, label='Pivot Point', zorder=5)
+                       linewidth=0.9, alpha=0.9, label='P-pt', zorder=5)
             
             # Standard pivot levels
             # colors_r = ['darkred', 'red', 'lightcoral']
@@ -729,41 +729,41 @@ class FifteenMinuteSupportResistance:
             prev = pivot_data['previous_session']
             if prev:
                 ax1.axhline(y=prev['prev_high'], color='purple', linestyle='-.', 
-                           linewidth=1.5, alpha=0.6, label='Prev High', zorder=2)
+                           linewidth=1.5, alpha=0.6, label='Pr-H', zorder=2)
                 ax1.axhline(y=prev['prev_low'], color='purple', linestyle='-.', 
-                           linewidth=1.5, alpha=0.6, label='Prev Low', zorder=2)
+                           linewidth=1.5, alpha=0.6, label='Pr-L', zorder=2)
                 ax1.axhline(y=prev['prev_close'], color='gray', linestyle='-.', 
-                           linewidth=1.5, alpha=0.6, label='Prev Close', zorder=2)
+                           linewidth=1.5, alpha=0.6, label='Pr-C', zorder=2)
         
         # VWAP - dynamic line
-        vwap_data = self.real_time_vwap()
-        if vwap_data:
-            current_date = datetime.now().date()
-            for date_str, vwap_info in vwap_data.items():
-                try:
-                    date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
-                    if date_obj == current_date and len(vwap_info['vwap_series']) > 0:
-                        # Get current session data
-                        if hasattr(self.data.index, 'date'):
-                            data_dates = self.data.index.date
-                        else:
-                            data_dates = [d.date() for d in self.data.index]
+        # vwap_data = self.real_time_vwap()
+        # if vwap_data:
+        #     current_date = datetime.now().date()
+        #     for date_str, vwap_info in vwap_data.items():
+        #         try:
+        #             date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+        #             if date_obj == current_date and len(vwap_info['vwap_series']) > 0:
+        #                 # Get current session data
+        #                 if hasattr(self.data.index, 'date'):
+        #                     data_dates = self.data.index.date
+        #                 else:
+        #                     data_dates = [d.date() for d in self.data.index]
                         
-                        current_mask = [d == current_date for d in data_dates]
-                        session_data_for_vwap = self.data[current_mask]
+        #                 current_mask = [d == current_date for d in data_dates]
+        #                 session_data_for_vwap = self.data[current_mask]
                         
-                        if not session_data_for_vwap.empty:
-                            vwap_series = vwap_info['vwap_series']
-                            # Match VWAP series length with session data
-                            min_length = min(len(vwap_series), len(session_data_for_vwap))
-                            vwap_times = session_data_for_vwap.index[:min_length]
-                            vwap_values = vwap_series.iloc[:min_length]
+        #                 if not session_data_for_vwap.empty:
+        #                     vwap_series = vwap_info['vwap_series']
+        #                     # Match VWAP series length with session data
+        #                     min_length = min(len(vwap_series), len(session_data_for_vwap))
+        #                     vwap_times = session_data_for_vwap.index[:min_length]
+        #                     vwap_values = vwap_series.iloc[:min_length]
                             
-                            ax1.plot(vwap_times, vwap_values, color='purple', linewidth=3, 
-                                   alpha=0.9, label='VWAP', zorder=6)
-                        break
-                except:
-                    continue
+        #                     ax1.plot(vwap_times, vwap_values, color='purple', linewidth=3, 
+        #                            alpha=0.9, label='VWAP', zorder=6)
+        #                 break
+        #         except:
+        #             continue
         
         # Swing levels
         swing_data = self.fifteen_min_swing_levels()
@@ -802,9 +802,9 @@ class FifteenMinuteSupportResistance:
                 if len(recent_data) >= period:
                     ema_series = recent_data['Close'].ewm(span=period, adjust=False).mean()
                     ax1.plot(recent_data.index, ema_series, 
-                             label=f'EMA {period}', 
+                             label=f'ema {period}', 
                              color=ema_colors[i % len(ema_colors)], 
-                             linewidth=1.5, alpha=0.7, zorder=4)
+                             linewidth=1, alpha=0.7, zorder=4)
 
 
         # Candlestick patterns
@@ -835,7 +835,7 @@ class FifteenMinuteSupportResistance:
         ax1.set_title(f'{self.symbol} - 15-Minute Candlestick Chart with Support/Resistance\n'
                      f'Current Price: ${self.current_price:.2f} | '
                      f'Time: {datetime.now().strftime("%Y-%m-%d %H:%M")}', 
-                     fontsize=14, pad=20)
+                     fontsize=9, pad=20)
         ax1.set_ylabel('Price ($)', fontsize=14)
         ax1.legend(bbox_to_anchor=(1.02, 1), loc='upper left', fontsize=11)
         ax1.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)

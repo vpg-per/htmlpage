@@ -21,12 +21,11 @@ HTML_TEMPLATE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scalping Analysis for {{ symbol }}</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 12px; }
+        body { font-family: Arial, sans-serif; }
         h1, h2 { color: #333; }
         .container { display: flex; }
-        .summary { margin-right: 30px; }
         .chart img { max-width: 100%; border: 1px solid #ccc; }
-        table { border-collapse: collapse; margin-top: 15px; }
+        table { border-collapse: collapse; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; }
     </style>
@@ -34,7 +33,7 @@ HTML_TEMPLATE = """
 <body>    
     <div class="container">
         <div class="chart">
-            <h6>Scalping Analysis for {{ summary.symbol }} -- 15-Minute Chart</h6>
+            <h5>Scalping Analysis for {{ summary.symbol }} -- 15-Minute Chart</h5>
             <img src="data:image/png;base64,{{ chart_image }}" alt="15-Minute Chart">
         </div>
     </div>

@@ -12,8 +12,8 @@ import io
 import base64
 warnings.filterwarnings('ignore')
 
-class FifteenMinuteSupportResistance:
-    def __init__(self, symbol, days_back=3):
+class SupportResistanceByInputInterval:
+    def __init__(self, symbol, interval, days_back=3):
         """
         Initialize for 15-minute day trading analysis
         
@@ -28,11 +28,12 @@ class FifteenMinuteSupportResistance:
             self.days_back = 3
         else:
             self.days_back = days_back
+        self.interval = interval
         self.data = None
         self.current_price = None
         
-    def fetch_15min_data(self, include_premarket=True):
-        """Fetch 15-minute stock data for recent days including pre-market"""
+    def fetch_data(self, include_premarket=True):
+        """Fetch stock data for recent days including pre-market"""
         try:
             ticker = yf.Ticker(self.symbol)
             
@@ -46,15 +47,15 @@ class FifteenMinuteSupportResistance:
             
             # Fetch data with extended hours (includes pre-market and after-hours)
             if include_premarket:
-                self.data = ticker.history(period=period, interval="15m", 
+                self.data = ticker.history(period=period, interval=self.interval, 
                                          prepost=True, repair=True)
                 print(f"Fetching extended hours data (includes pre-market)...")
             else:
-                self.data = ticker.history(period=period, interval="15m")
+                self.data = ticker.history(period=period, interval=self.interval)
                 print(f"Fetching regular hours data only...")
             
             if self.data.empty:
-                print(f"No 15-minute data available for {self.symbol}")
+                print(f"No {self.interval} data available for {self.symbol}")
                 return False
             
             # Keep only the requested number of days
@@ -78,7 +79,7 @@ class FifteenMinuteSupportResistance:
             premarket_bars = len(self.data[self.data['Session'] == 'Pre-Market'])
             afterhours_bars = len(self.data[self.data['Session'] == 'After-Hours'])
             
-            print(f"Fetched {len(self.data)} total 15-minute bars for {self.symbol}")
+            print(f"Fetched {len(self.data)} total {self.interval} bars for {self.symbol}")
             print(f"  - Regular Hours: {regular_bars} bars")
             print(f"  - Pre-Market: {premarket_bars} bars") 
             print(f"  - After-Hours: {afterhours_bars} bars")
@@ -539,15 +540,15 @@ class FifteenMinuteSupportResistance:
         }
     
     def calculate_all_15min_levels(self):
-        """Calculate all 15-minute support and resistance levels"""
-        if not self.fetch_15min_data(include_premarket=True):
+        """Calculate all support and resistance levels"""
+        if not self.fetch_data(include_premarket=True):
             return None
             
         results = {
             'symbol': self.symbol,
             'current_price': self.current_price,
             'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            'timeframe': '15-minute',
+            'timeframe': self.interval,
             'session_levels': self.session_levels(),
             'premarket_analysis': self.premarket_analysis(),
             'pivot_points': self.fifteen_min_pivot_points(),
@@ -568,7 +569,7 @@ class FifteenMinuteSupportResistance:
         summary = {
             'symbol': self.symbol,
             'current_price': self.current_price,
-            'timeframe': '15-minute',
+            'timeframe': self.interval,
             'timestamp': results['timestamp'],
             'immediate_levels': {},
             'premarket_summary': {}
@@ -832,15 +833,15 @@ class FifteenMinuteSupportResistance:
                                         zorder=1))
 
         # Chart formatting
-        ax1.set_title(f'{self.symbol} - 15-Minute Candlestick Chart with Support/Resistance\n'
+        ax1.set_title(f'{self.symbol} - {self.interval} Candlestick Chart with Support/Resistance\n'
                      f'Current Price: ${self.current_price:.2f} | '
                      f'Time: {datetime.now().strftime("%Y-%m-%d %H:%M")}', 
                      fontsize=9, pad=20)
-        ax1.set_ylabel('Price ($)', fontsize=14)
+        ax1.set_ylabel('Price ($)', fontsize=9)
         ax1.legend(bbox_to_anchor=(1.02, 1), loc='upper left', fontsize=11)
         ax1.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
 
-        ax1.set_xlabel('Time (15-minute intervals)', fontsize=12)
+        ax1.set_xlabel(f'Time ({self.interval} intervals)', fontsize=9)
         ax1.tick_params(axis='x', rotation=45)
         ax1.tick_params(axis='both', labelsize=10)
 

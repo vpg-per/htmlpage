@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from time import strftime
 from flask import Flask, json, render_template, request, session, render_template_string
 from dataManager import ServiceManager
-from supresrange import FifteenMinuteSupportResistance
+from supresrange import SupportResistanceByInputInterval
 import base64
 
 app = Flask(__name__)
@@ -33,8 +33,8 @@ HTML_TEMPLATE = """
 <body>    
     <div class="container">
         <div class="chart">
-            <h5>Scalping Analysis for {{ summary.symbol }} -- 15-Minute Chart</h5>
-            <img src="data:image/png;base64,{{ chart_image }}" alt="15-Minute Chart">
+            <h5>Scalping Analysis for {{ summary.symbol }} -- {{ summary.timeframe}} Chart</h5>
+            <img src="data:image/png;base64,{{ chart_image }}" >
         </div>
     </div>
 </body>
@@ -47,7 +47,7 @@ def scalping_example():
     """Example optimized for scalping and short-term day trading"""
     
     # Initialize for 15-minute scalping (2 days of data)
-    scalper = FifteenMinuteSupportResistance("SPY", days_back=2)
+    scalper = FifteenMinuteSupportResistance("SPY", days_back=1)
     
     # Get comprehensive analysis
     full_results = scalper.calculate_all_15min_levels()
@@ -56,7 +56,7 @@ def scalping_example():
     summary = scalper.get_scalping_summary()
     
     if summary and full_results:
-        print(f"\n=== SCALPING SETUP: {summary['symbol']} (15-Min + Pre-Market) ===")
+        print(f"\n=== SCALPING SETUP: {summary['symbol']} ( {summary['timeframe']} + Pre-Market) ===")
         print(f"Current Price: ${summary['current_price']:.2f}")
         print(f"Analysis Time: {summary['timestamp']}")
         
@@ -242,7 +242,8 @@ def ReturnPattern():
 def ScalpPattern():
     """Run analysis and display on a web page."""
     symbol = request.args.get('symbol', default='SPY', type=str).upper()
-    scalper = FifteenMinuteSupportResistance(symbol, days_back=2)
+    interval = request.args.get('interval', default='15m', type=str)
+    scalper = SupportResistanceByInputInterval(symbol, interval, days_back=2)
     summary = scalper.get_scalping_summary()
 
     if not summary:

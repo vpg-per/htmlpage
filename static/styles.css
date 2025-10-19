@@ -17,3 +17,26 @@ tr:nth-child(even) {
 tr:hover {
   background: #d1d1d1;
 }
+
+.chevron_down {
+    display: inline-block;
+    border-right:
+        3px solid #ff1a1a;
+    border-bottom:
+        3px solid #ff1a1a;
+    transform: rotate(45deg);
+    width: 6px;
+    height: 6px;
+}
+
+.chevron_up {
+    display: inline-block;
+    border-right:
+        3px solid #028A0f;
+    border-bottom:
+        3px solid #028A0f;
+    transform: rotate(-135deg);
+    width: 6px;
+    height: 6px;
+}
+  

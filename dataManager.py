@@ -20,6 +20,12 @@ class ServiceManager:
         self._message = []
         self.token = os.getenv("TELE_TOKEN")
         self.chat_id = os.getenv("TELE_CHAT_ID")
+        self.data5m = None
+        self.data15m = None
+        self.data30m = None
+        self.data1h = None
+        self.data4h = None
+
 
     def fetch_stock_data(self, symbol, startPeriod, endPeriod, interval="1d"):
         """
@@ -142,16 +148,59 @@ class ServiceManager:
             df['hour'] = np.where(df['hour']=="18", "17", df['hour'])
 
         df_signal = df.copy()
+        df_signal = self.calculate_bollinger_bands(df_signal, period=20, std_dev=2)
         df_with_rsi = self.calculate_rsi(df_signal, period=14)    
         df_final = self.identify_crossovers(df_with_rsi)
-        df_sel_cols = df_final.loc[:, ['unixtime', 'rec_dt', 'nmonth', 'nday', 'hour', 'minute', 'rsi', 'signal', 'crossover','open','close','high','low']]
-        df_sel_cols['interval'] = interval
-        df_sel_cols['symbol'] = symbol.replace("%3DF","")
-                
-        if ((interval == "15m") | (interval == "30m" ) ):
-            self.check_forcrossover(df_sel_cols)
         
-        return df_sel_cols.tail(1)
+        # Add pattern for neutral crossover candles
+        neutral_mask = df_final['crossover']
+        df_final['pattern'] = np.where(df_final['open'] < df_final['close'], 'UC', 
+                                                np.where(df_final['open'] > df_final['close'], 'EC', 'NA'))
+        df_final['pattern2c'] = np.where(df_final['close'] > df_final['close'].shift(1), 'UE', 
+                                                np.where(df_final['close'] < df_final['close'].shift(1), 'EE', 'NA'))
+
+        df_sel_cols = df_final.loc[:, ['unixtime', 'rec_dt', 'nmonth', 'nday', 'hour', 'minute', 'rsi', 'signal', 'crossover','open','close','high','low', 'midbnd', 'ubnd', 'lbnd', 'pattern', 'pattern2c']]
+        df_sel_cols = self.calculate_Buy_Sell_Values(df_sel_cols)
+        df_sel_cols['interval'] = interval
+        df_sel_cols['symbol'] = symbol.replace("%3DF","")            
+
+        # if ((interval == "15m") | (interval == "30m" ) ):
+        #     self.check_forcrossover(df_sel_cols)
+
+        
+        return df_sel_cols
+
+    def calculate_Buy_Sell_Values(self, df):
+     
+        df['buyval'], df['sellval'], df['stoploss']= 0, 0, 0
+        crs_found = "unknown"
+        todayn = datetime.now().strftime('%d')
+        for i in range(1, len(df)):
+            if ( df['nday'].iloc[i] == "17" ):
+            #if ( df['nday'].iloc[i] == todayn and df['nday'].iloc[i] != df['nday'].iloc[i-1] ):
+                if (df['crossover'].iloc[i] == "Bullish" ):
+                    crs_found = "Bullish"
+                    df['buyval'].iloc[i] = df['midbnd'].iloc[i]
+                    df['sellval'].iloc[i] = df['ubnd'].iloc[i]
+                    df['stoploss'].iloc[i] = df['lbnd'].iloc[i]
+                elif (df['crossover'].iloc[i] == "Bearish" ):
+                    crs_found = "Bearish"
+                    df['buyval'].iloc[i] = df['midbnd'].iloc[i]
+                    df['sellval'].iloc[i] = df['lbnd'].iloc[i]
+                    df['stoploss'].iloc[i] = df['ubnd'].iloc[i]
+
+        return df
+
+
+    def calculate_bollinger_bands(self, df, period=20, std_dev=2):
+        
+        # Calculate Middle Band (SMA)
+        df['midbnd'] = df['close'].rolling(window=period).mean()
+        df['stddev'] = df['close'].rolling(window=period).std()
+        df['ubnd'] = round(df['midbnd'] + (std_dev * df['stddev']), 2)
+        df['lbnd'] = round(df['midbnd'] - (std_dev * df['stddev']), 2)
+        df['midbnd'] = round(df['midbnd'], 2)
+        return df
 
     def calculate_rsi(self, df, period=14):
         """
@@ -202,17 +251,22 @@ class ServiceManager:
         return df
 
     def calculate_rsi_signal(self, symbol):
+        todayn = "17" #datetime.now().strftime('%d')
         df_merged = { }
-        df_merged = self.GetStockdata_Byinterval(symbol, "5m")
-        df_temp = self.GetStockdata_Byinterval(symbol, "15m")
+        self.data5m = self.GetStockdata_Byinterval(symbol, "5m")
+        df_merged = self.data5m[(self.data5m['nday'] == todayn) ].copy().tail(25)
+        self.data15m = self.GetStockdata_Byinterval(symbol, "15m")
+        df_temp = self.data15m[(self.data15m['nday'] == todayn) ].copy().tail(20)
         df_merged=  pd.concat([df_merged, df_temp], ignore_index=True)
-        df_temp = self.GetStockdata_Byinterval(symbol, "30m")
+        self.data30m = self.GetStockdata_Byinterval(symbol, "30m")
+        df_temp = self.data30m[(self.data30m['nday'] == todayn) ].copy().tail(12)
         df_merged=  pd.concat([df_merged, df_temp], ignore_index=True)
-        df_temp = self.GetStockdata_Byinterval(symbol, "1h")
+        self.data1h = self.GetStockdata_Byinterval(symbol, "1h")
+        df_temp = self.data1h[(self.data1h['nday'] == todayn) ].copy().tail(6)
         df_merged=  pd.concat([df_merged, df_temp], ignore_index=True)
-        df_temp = self.GetStockdata_Byinterval(symbol, "4h")
+        self.data4h = self.GetStockdata_Byinterval(symbol, "4h").tail(3)
+        df_temp = self.data4h[(self.data4h['nday'] == todayn) ].copy()
         df_merged=  pd.concat([df_merged, df_temp], ignore_index=True)
-
         return df_merged
 
     def check_forcrossover(self, df):
@@ -265,8 +319,8 @@ class ServiceManager:
             with psycopg2.connect(conn_string) as conn:
                 with conn.cursor() as cur:
                     cur.execute(
-                        "INSERT INTO rsicrossover (\"triggerTime\", \"interval\", \"crossover\", \"stocksymbol\", \"Open\", \"Close\", \"Low\", \"High\", \"NotificationSent\", \"rsiVal\", \"signal\") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);",
-                        (dttimeval, row['interval'], row['crossover'], row['symbol'], row['open'], row['close'], row['low'], row['high'], "TRUE", row['rsi'], row['signal'])
+                        "INSERT INTO rsicrossover (\"triggerTime\", \"interval\", \"crossover\", \"stocksymbol\", \"Open\", \"Close\", \"Low\", \"High\", \"NotificationSent\", \"rsiVal\", \"signal\", \"midbnd\", \"ubnd\", \"lbnd\") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);",
+                        (dttimeval, row['interval'], row['crossover'], row['symbol'], row['open'], row['close'], row['low'], row['high'], "TRUE", row['rsi'], row['signal'], row['midbnd'], row['ubnd'], row['lbnd'])
                     )
         
         except psycopg2.Error as e:

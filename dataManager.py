@@ -164,9 +164,8 @@ class ServiceManager:
         df_sel_cols['interval'] = interval
         df_sel_cols['symbol'] = symbol.replace("%3DF","")            
 
-        # if ((interval == "15m") | (interval == "30m" ) ):
-        #     self.check_forcrossover(df_sel_cols)
-
+        if ((interval == "15m") | (interval == "30m" ) ):
+            self.check_forcrossover(df_sel_cols)
         
         return df_sel_cols
 

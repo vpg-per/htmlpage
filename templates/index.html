@@ -130,8 +130,14 @@
 <script>
 	$(document).ready(function () { 
 		
+        var inpsymbol = '{{ symbol }}';
+        var inpurl = '/returnPattern';
+        if (inpsymbol.length > 0)
+        {
+            inpurl += "?symbol=" + inpsymbol;
+        }
 		setTimeout(() => {
-		  $.getJSON('/returnPattern',  
+		  $.getJSON(inpurl,  
 			 function (data) { 
 				 //var objd = $.parseJSON(data); 
 				 drawTable(data); 

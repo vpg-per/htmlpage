@@ -219,7 +219,10 @@ def ReturnPattern():
 
     g_message = []
     objMgr.set_message(g_message)
+    symbol = request.args.get('symbol', default='', type=str).upper()
     stocksymbols = ['GLD', 'QQQ', 'IWM']
+    if (symbol != ""):
+        stocksymbols = [symbol]
     #stocksymbols = ['NQ%3DF', 'RTY%3DF', 'GC%3DF']
     df_allsymbols = {}
     for ss in stocksymbols:  
@@ -265,8 +268,8 @@ def index():
 #def main():
     global g_message
     g_message = []
-    
-    return render_template('./index.html')
+    symbol = request.args.get('symbol', default='', type=str).upper()
+    return render_template('./index.html', symbol=symbol)
 
 if __name__ == "__main__":
     # Run the analysis

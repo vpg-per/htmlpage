@@ -94,7 +94,20 @@
             row.append($("<td>" + rowData["symbol"] + "</td>"));
             var crssmbl = rowData["crossover"]  == "Bullish" ? "<div class='chevron_up'></div>" : (rowData["crossover"]  == "Bearish" ? "<div class='chevron_down'></div>" : "" );            
             row.append($("<td>" + rowData["interval"] + "&nbsp;" + crssmbl + "</td>"));
-            row.append($("<td style='color:" + (rowData["close"] > rowData["open"] ? "#006400" : (rowData["close"] == rowData["open"] ? "#000000" : "#c30911" )) + "'>" + rowData["open"] + "/" + rowData["close"] + "</td>"));
+            if (rowData["interval"] == "15m" || rowData["interval"] == "30m")
+            {
+                var aptext = "<td style='color:" + (rowData["close"] > rowData["open"] ? "#006400" : (rowData["close"] == rowData["open"] ? "#000000" : "#c30911" )) + "'>" + rowData["open"] + "/" + rowData["close"] ;
+                var patterntext = "";
+                if (rowData["pattern"] != "NA")
+                    patterntext = rowData["pattern"];
+                if (rowData["pattern2c"] != "NA")
+                    patterntext = ( patterntext.length > 0 ? patterntext + ", " : "" ) + rowData["pattern2c"] 
+                if (patterntext.length > 0)         
+                    aptext =+ ", [" + patterntext + "]";
+                row.append($(aptext + "</td>"));
+            }
+            else
+                row.append($("<td style='color:" + (rowData["close"] > rowData["open"] ? "#006400" : (rowData["close"] == rowData["open"] ? "#000000" : "#c30911" )) + "'>" + rowData["open"] + "/" + rowData["close"] + "</td>"));
             row.append($("<td style='background-color:" + cellcolor + "'>" + rowData["rsi"] + "/" + rowData["signal"] + "/" + diff.toFixed(2) + "</td>"));
             
             var cvrcelltext = "";

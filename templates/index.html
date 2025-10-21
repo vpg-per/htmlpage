@@ -19,7 +19,7 @@
                 filteredrow = GetFilteredRow(ssfiltereddata, "last", "4h");
                 filteredcrsovrow = GetFilteredRow(ssfiltereddata, "crossover", "4h");
                 if (filteredrow != null )
-                    drawRow(filteredrow, filteredcrsovrow);            
+                    drawRow(filteredrow, null);            
                 filteredrow = GetFilteredRow(ssfiltereddata, "last", "1h");
                 filteredcrsovrow = GetFilteredRow(ssfiltereddata, "crossover", "1h");
                 if (filteredrow != null )
@@ -35,7 +35,7 @@
                 filteredrow = GetFilteredRow(ssfiltereddata, "last", "5m");
                 filteredcrsovrow = GetFilteredRow(ssfiltereddata, "crossover", "5m");
                 if (filteredrow != null )
-                    drawRow(filteredrow, filteredcrsovrow);
+                    drawRow(filteredrow, null);
             }
         }
 
@@ -97,8 +97,8 @@
             }
             row.append($("<td>" + rowData["nmonth"] + "-" + rowData["nday"] + " " + rowData["hour"] + ":" + rowData["minute"] + "</td>"));
             row.append($("<td>" + rowData["symbol"] + "</td>"));
-            var crssmbl = rowData["crossover"]  == "Bullish" ? "#006400" : (rowData["crossover"]  == "Bearish" ? "#c30911" : "#000000" );
-            row.append($("<td style='color:" + crssmbl + "'>" + rowData["interval"] + "</td>"));
+            var intcellcolor = rowData["crossover"]  == "Bullish" ? "#b3d9b3" : (rowData["crossover"]  == "Bearish" ? "#f6d1d1" : "" );
+            row.append($("<td style='background-color:" + intcellcolor + "'>" + rowData["interval"] + "</td>"));
             if (rowData["interval"] == "15m" || rowData["interval"] == "30m")
             {
                 var aptext = "<td style='color:" + (rowData["close"] > rowData["open"] ? "#006400" : (rowData["close"] == rowData["open"] ? "#000000" : "#c30911" )) + "'>" + rowData["open"] + "/" + rowData["close"] ;
@@ -113,7 +113,7 @@
             }
             else
                 row.append($("<td style='color:" + (rowData["close"] > rowData["open"] ? "#006400" : (rowData["close"] == rowData["open"] ? "#000000" : "#c30911" )) + "'>" + rowData["open"] + "/" + rowData["close"] + "</td>"));
-            row.append($("<td style='background-color:" + cellcolor + "'>" + rowData["rsi"] + "/" + rowData["signal"] + "/" + diff.toFixed(2) + "</td>"));
+            row.append($("<td style='background-color:" + cellcolor + "'>" + rowData["rsi"] + "/" + rowData["signal"] + "</td>"));
             
             var cvrcelltext = "";
             var tgtcelltext = "";

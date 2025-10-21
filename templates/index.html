@@ -18,19 +18,24 @@
                 ssfiltereddata = data.filter(item => item.symbol === ssitem);                
                 filteredrow = GetFilteredRow(ssfiltereddata, "last", "4h");
                 filteredcrsovrow = GetFilteredRow(ssfiltereddata, "crossover", "4h");
-                drawRow(filteredrow, filteredcrsovrow);            
+                if (filteredrow != null )
+                    drawRow(filteredrow, filteredcrsovrow);            
                 filteredrow = GetFilteredRow(ssfiltereddata, "last", "1h");
                 filteredcrsovrow = GetFilteredRow(ssfiltereddata, "crossover", "1h");
-                drawRow(filteredrow, filteredcrsovrow);
+                if (filteredrow != null )
+                    drawRow(filteredrow, filteredcrsovrow);
                 filteredrow = GetFilteredRow(ssfiltereddata, "last", "30m");
                 filteredcrsovrow = GetFilteredRow(ssfiltereddata, "crossover", "30m");
-                drawRow(filteredrow, filteredcrsovrow);
+                if (filteredrow != null )
+                    drawRow(filteredrow, filteredcrsovrow);
                 filteredrow = GetFilteredRow(ssfiltereddata, "last", "15m");
                 filteredcrsovrow = GetFilteredRow(ssfiltereddata, "crossover", "15m");
-                drawRow(filteredrow, filteredcrsovrow);
+                if (filteredrow != null )
+                    drawRow(filteredrow, filteredcrsovrow);
                 filteredrow = GetFilteredRow(ssfiltereddata, "last", "5m");
                 filteredcrsovrow = GetFilteredRow(ssfiltereddata, "crossover", "5m");
-                drawRow(filteredrow, filteredcrsovrow);
+                if (filteredrow != null )
+                    drawRow(filteredrow, filteredcrsovrow);
             }
         }
 
@@ -103,7 +108,7 @@
                 if (rowData["pattern2c"] != "NA")
                     patterntext = ( patterntext.length > 0 ? patterntext + ", " : "" ) + rowData["pattern2c"] 
                 if (patterntext.length > 0)         
-                    aptext =+ ", [" + patterntext + "]";
+                    aptext += ", [" + patterntext + "]";
                 row.append($(aptext + "</td>"));
             }
             else

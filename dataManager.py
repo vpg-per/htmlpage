@@ -195,9 +195,9 @@ class ServiceManager:
             # Marubozu (strong momentum)
             if price_range > 0 and body / price_range > 0.95:
                 if c > o:
-                    data['pattern'].iloc[i] = 'UMbozu'
+                    data['pattern'].iloc[i] = 'UM'
                 else:
-                    data['pattern'].iloc[i] = 'EMbozu'
+                    data['pattern'].iloc[i] = 'EM'
 
             # --- Two-bar patterns ---
             data['pattern2c'].iloc[i] = 'NA'

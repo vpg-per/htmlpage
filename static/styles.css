@@ -17,6 +17,10 @@ tr:nth-child(even) {
 tr:hover {
   background: #d1d1d1;
 }
+ 
+body {
+  font-size: 15px;
+}
 
 .chevron_down {
     display: inline-block;

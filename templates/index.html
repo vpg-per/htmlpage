@@ -132,7 +132,7 @@
                 if (parseFloat(rowData["buyval"]) > 0 && parseFloat(rowData["sellval"]) > 0)    
                     tgtcelltext = rowData["buyval"] + "/" + rowData["sellval"] + "/" + rowData["stoploss"];
             }
-            row.append($("<td style='color:" + cellcolor + "'>" + tgtcelltext + (cvrcelltext.trim().length > 0 ? "&nbsp; [ " + cvrcelltext + " ]" : "") + "</td>"));
+            row.append($("<td style='color:" + cellcolor + "'>" + tgtcelltext + (cvrcelltext.trim().length > 0 ? "&nbsp; [" + cvrcelltext + "]" : "") + "</td>"));
         }
     </script>
 </head>

@@ -171,7 +171,6 @@ class ServiceManager:
         if (interval == "15m" or interval == "30m"):
             df_sel_cols = self.identify_candlestick_patterns(df_sel_cols)
             self.check_forcrossover(df_sel_cols)
-            print(df_sel_cols)
         
         return df_sel_cols
 

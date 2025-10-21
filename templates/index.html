@@ -9,7 +9,7 @@
     <script type="text/javascript">
         function drawTable(data) {
             // Get Table headers and print
-            var head = $("<tr><th>DateTime</th><th>Symbol</th><th>Interval</th><th>Open/Close</th><th>RSI/Avg/Diff</th><th>Cvr</th><th>Target</th></tr>")
+            var head = $("<tr><th>DateTime</th><th>Symbol</th><th>Interval</th><th>Open/Close</th><th>RSI/Avg/Diff</th><th>Target</th></tr>")
             $("#DataStrategy").append(head);
             // Print the content of rows in DataTable
             const ssList = new Set(data.map(item => item.symbol));
@@ -97,8 +97,8 @@
             }
             row.append($("<td>" + rowData["nmonth"] + "-" + rowData["nday"] + " " + rowData["hour"] + ":" + rowData["minute"] + "</td>"));
             row.append($("<td>" + rowData["symbol"] + "</td>"));
-            var crssmbl = rowData["crossover"]  == "Bullish" ? "<div class='chevron_up'></div>" : (rowData["crossover"]  == "Bearish" ? "<div class='chevron_down'></div>" : "" );            
-            row.append($("<td>" + rowData["interval"] + "&nbsp;" + crssmbl + "</td>"));
+            var crssmbl = rowData["crossover"]  == "Bullish" ? "#006400" : (rowData["crossover"]  == "Bearish" ? "#c30911" : "#000000" );
+            row.append($("<td style='color:" + crssmbl + "'>" + rowData["interval"] + "</td>"));
             if (rowData["interval"] == "15m" || rowData["interval"] == "30m")
             {
                 var aptext = "<td style='color:" + (rowData["close"] > rowData["open"] ? "#006400" : (rowData["close"] == rowData["open"] ? "#000000" : "#c30911" )) + "'>" + rowData["open"] + "/" + rowData["close"] ;
@@ -117,21 +117,22 @@
             
             var cvrcelltext = "";
             var tgtcelltext = "";
+            var cellcolor = "#000000";
             if ( signalrow != null && !(rowData["hour"] == signalrow["hour"] && rowData["minute"] == signalrow["minute"]))
             {
-                cvrcelltext =signalrow["hour"] + ":" + signalrow["minute"] + "&nbsp;" +
-                    (signalrow["crossover"]  == "Bullish" ? "<div class='chevron_up'></div>" : (signalrow["crossover"]  == "Bearish" ? "<div class='chevron_down'></div>" : "" ));
+                cvrcelltext =signalrow["hour"] + ":" + signalrow["minute"] ;
+                cellcolor =  (signalrow["crossover"]  == "Bullish" ? "#006400" : (signalrow["crossover"]  == "Bearish" ? "#c30911" : "#000000" ));
                 if (parseFloat(signalrow["buyval"]) > 0 && parseFloat(signalrow["sellval"]) > 0)
                     tgtcelltext = signalrow["buyval"] + "/" + signalrow["sellval"] + "/" + signalrow["stoploss"];
             }
             else
             {
-                cvrcelltext = "&nbsp;";
+                cvrcelltext = "";
+                cellcolor = rowData["crossover"]  == "Bullish" ? "#006400" : (rowData["crossover"]  == "Bearish" ? "#c30911" : "#000000" );
                 if (parseFloat(rowData["buyval"]) > 0 && parseFloat(rowData["sellval"]) > 0)    
                     tgtcelltext = rowData["buyval"] + "/" + rowData["sellval"] + "/" + rowData["stoploss"];
             }
-            row.append($("<td>" + cvrcelltext + "</td>"));
-            row.append($("<td>" + tgtcelltext + "</td>"));
+            row.append($("<td style='color:" + cellcolor + "'>" + tgtcelltext + (cvrcelltext.trim().length > 0 ? "&nbsp; [ " + cvrcelltext + " ]" : "") + "</td>"));
         }
     </script>
 </head>

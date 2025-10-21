@@ -154,24 +154,66 @@ class ServiceManager:
         
         # Add pattern for neutral crossover candles
         neutral_mask = df_final['crossover']
-        df_final['pattern'] = np.where(df_final['open'] < df_final['close'], 'UC', 
-                                                np.where(df_final['open'] > df_final['close'], 'EC', 'NA'))
-        df_final['pattern2c'] = np.where(df_final['close'] > df_final['close'].shift(1), 'UE', 
-                                                np.where(df_final['close'] < df_final['close'].shift(1), 'EE', 'NA'))
-
-        df_sel_cols = df_final.loc[:, ['unixtime', 'rec_dt', 'nmonth', 'nday', 'hour', 'minute', 'rsi', 'signal', 'crossover','open','close','high','low', 'midbnd', 'ubnd', 'lbnd', 'pattern', 'pattern2c']]
-        df_sel_cols = self.calculate_Buy_Sell_Values(df_sel_cols)
+        #df_final['pattern'] = np.where(df_final['open'] < df_final['close'], 'UC', 
+        #                                        np.where(df_final['open'] > df_final['close'], 'EC', 'NA'))
+        #df_final['pattern2c'] = np.where(df_final['close'] > df_final['close'].shift(1), 'UE', 
+        #                                        np.where(df_final['close'] < df_final['close'].shift(1), 'EE', 'NA'))
+        
+        df_sel_cols = df_final.loc[:, ['unixtime', 'rec_dt', 'nmonth', 'nday', 'hour', 'minute', 'rsi', 'signal', 'crossover','open','close','high','low', 'midbnd', 'ubnd', 'lbnd']]
         df_sel_cols['interval'] = interval
-        df_sel_cols['symbol'] = symbol.replace("%3DF","")            
+        df_sel_cols['symbol'] = symbol.replace("%3DF","") 
 
-        if ((interval == "15m") | (interval == "30m" ) ):
+        df_sel_cols['buyval'], df_sel_cols['sellval'], df_sel_cols['stoploss']= 0, 0, 0
+        if (interval =="15m" or interval == "30m" or interval == "1h" ):
+            df_sel_cols = self.calculate_Buy_Sell_Values(df_sel_cols)
+        
+        df_sel_cols['pattern'], df_sel_cols['pattern2c'] = 'NA','NA'
+        if (interval == "15m" or interval == "30m"):
+            df_sel_cols = self.identify_candlestick_patterns(df_sel_cols)
             self.check_forcrossover(df_sel_cols)
         
         return df_sel_cols
 
+    def identify_candlestick_patterns(self, data):
+        """Identifies common candlestick patterns in the data."""
+        
+        if len(data) < 3:
+            return data
+
+        for i in range(1, len(data)):
+            o, h, l, c = data['open'].iloc[i], data['high'].iloc[i], data['low'].iloc[i], data['close'].iloc[i]
+            o_prev, c_prev = data['open'].iloc[i-1], data['close'].iloc[i-1]
+            o_prev_2, c_prev_2 = data['open'].iloc[i-2], data['close'].iloc[i-3]
+            
+            body = abs(c - o)
+            price_range = h - l
+           
+            # --- Single-bar patterns ---            
+            # Doji (small body)
+            if price_range > 0 and body / price_range < 0.1:
+                data['pattern'].iloc[i] = 'Doji'
+            # Marubozu (strong momentum)
+            if price_range > 0 and body / price_range > 0.95:
+                if c > o:
+                    data['pattern'].iloc[i] = 'UMbozu'
+                else:
+                    data['pattern'].iloc[i] = 'EMbozu'
+
+            # --- Two-bar patterns ---
+            data['pattern2c'].iloc[i] = 'NA'
+            # Bullish Engulfing
+            if c > o and c_prev < o_prev and c > o_prev and o < c_prev:
+                data['pattern2c'].iloc[i] = 'UE'
+            # Bearish Engulfing
+            if c < o and c_prev > o_prev and c < o_prev and o > c_prev:
+                data['pattern2c'].iloc[i] = 'EE'
+
+            # --- Three-bar patterns ---
+            
+        return data
+
     def calculate_Buy_Sell_Values(self, df):
      
-        df['buyval'], df['sellval'], df['stoploss']= 0, 0, 0
         crs_found = "unknown"
         todayn = datetime.now().strftime('%d')
         for i in range(1, len(df)):
@@ -188,7 +230,6 @@ class ServiceManager:
                     df['stoploss'].iloc[i] = df['ubnd'].iloc[i]
 
         return df
-
 
     def calculate_bollinger_bands(self, df, period=20, std_dev=2):
         
@@ -276,10 +317,14 @@ class ServiceManager:
         for date, row in df.tail(1).iterrows():
             if (( row['crossover'] == "Bullish") | ( row['crossover'] == "Bearish")):
                 if (self.isExistsinDB(row) == False):
-                    tsignal = "buy" if (row['crossover'] == "Bullish") else "sell"
-                    message = (f"{row['symbol']} {tsignal} signal on {row['interval']} analysis at {row['hour']}:{row['minute']}, o:{row['open']}, c: {row['close']};")
-                    self._message.append( message )
-                    self.AddRecordtoDB(row)
+                    message = ""
+                    if (row['crossover'] == "Bullish"):
+                        message = (f"{row['symbol']} Buy signal on {row['interval']} consider trade at {row['midbnd']}:{row['ubnd']}:{row['lbnd']}")
+                    elif (row['crossover'] == "Bearish"):
+                        message = (f"{row['symbol']} Sell signal on {row['interval']} consider trade at {row['midbnd']}:{row['ubnd']}:{row['lbnd']}")
+                    if (len(message) > 0):
+                        self._message.append( message )
+                        self.AddRecordtoDB(row)
 
         return
 

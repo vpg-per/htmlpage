@@ -149,26 +149,18 @@ class ServiceManager:
 
         df_signal = df.copy()
         df_signal = self.calculate_bollinger_bands(df_signal, period=20, std_dev=2)
-        df_with_rsi = self.calculate_rsi(df_signal, period=14)    
-        df_final = self.identify_crossovers(df_with_rsi)
+        df_with_rsi = self.calculate_rsi(df_signal, period=14)
+        df_with_rsi['crossover'] = 'Neutral'
         
-        # Add pattern for neutral crossover candles
-        neutral_mask = df_final['crossover']
-        #df_final['pattern'] = np.where(df_final['open'] < df_final['close'], 'UC', 
-        #                                        np.where(df_final['open'] > df_final['close'], 'EC', 'NA'))
-        #df_final['pattern2c'] = np.where(df_final['close'] > df_final['close'].shift(1), 'UE', 
-        #                                        np.where(df_final['close'] < df_final['close'].shift(1), 'EE', 'NA'))
-        
-        df_sel_cols = df_final.loc[:, ['unixtime', 'rec_dt', 'nmonth', 'nday', 'hour', 'minute', 'rsi', 'signal', 'crossover','open','close','high','low', 'midbnd', 'ubnd', 'lbnd']]
+        df_sel_cols = df_with_rsi.loc[:, ['unixtime', 'rec_dt', 'nmonth', 'nday', 'hour', 'minute', 'rsi', 'signal', 'crossover','open','close','high','low', 'midbnd', 'ubnd', 'lbnd']]
         df_sel_cols['interval'] = interval
         df_sel_cols['symbol'] = symbol.replace("%3DF","") 
 
         df_sel_cols['buyval'], df_sel_cols['sellval'], df_sel_cols['stoploss']= 0, 0, 0
-        if (interval =="15m" or interval == "30m" or interval == "1h" ):
-            df_sel_cols = self.calculate_Buy_Sell_Values(df_sel_cols)
-        
         df_sel_cols['pattern'], df_sel_cols['pattern2c'] = 'NA','NA'
-        if (interval == "15m" or interval == "30m"):
+        if (interval =="15m" or interval == "30m" ):
+            df_sel_cols = self.identify_crossovers(df_sel_cols)
+            df_sel_cols = self.calculate_Buy_Sell_Values(df_sel_cols)
             df_sel_cols = self.identify_candlestick_patterns(df_sel_cols)
             self.check_forcrossover(df_sel_cols)
         
@@ -179,36 +171,38 @@ class ServiceManager:
         
         if len(data) < 3:
             return data
-
+        
+        todayn = datetime.now().strftime('%d')
         for i in range(1, len(data)):
-            o, h, l, c = data['open'].iloc[i], data['high'].iloc[i], data['low'].iloc[i], data['close'].iloc[i]
-            o_prev, c_prev = data['open'].iloc[i-1], data['close'].iloc[i-1]
-            o_prev_2, c_prev_2 = data['open'].iloc[i-2], data['close'].iloc[i-3]
+            if ( data['nday'].iloc[i] == todayn ):
+                o, h, l, c = data['open'].iloc[i], data['high'].iloc[i], data['low'].iloc[i], data['close'].iloc[i]
+                o_prev, h_prev, l_prev, c_prev = data['open'].iloc[i-1], data['high'].iloc[i-1], data['low'].iloc[i-1], data['close'].iloc[i-1]
+                o_prev_2, c_prev_2 = data['open'].iloc[i-2], data['close'].iloc[i-3]
+                
+                body = abs(c - o)
+                price_range = h - l
             
-            body = abs(c - o)
-            price_range = h - l
-           
-            # --- Single-bar patterns ---            
-            # Doji (small body)
-            if price_range > 0 and body / price_range < 0.1:
-                data['pattern'].iloc[i] = 'Doji'
-            # Marubozu (strong momentum)
-            if price_range > 0 and body / price_range > 0.95:
-                if c > o:
-                    data['pattern'].iloc[i] = 'UM'
-                else:
-                    data['pattern'].iloc[i] = 'EM'
+                # --- Single-bar patterns ---            
+                # Doji (small body)
+                if price_range > 0 and body / price_range < 0.1:
+                    data['pattern'].iloc[i] = 'Dj'
+                # Marubozu (strong momentum)
+                if price_range > 0 and body / price_range > 0.95:
+                    if c > o:
+                        data['pattern'].iloc[i] = 'UM'
+                    else:
+                        data['pattern'].iloc[i] = 'EM'
 
-            # --- Two-bar patterns ---
-            data['pattern2c'].iloc[i] = 'NA'
-            # Bullish Engulfing
-            if c > o and c_prev < o_prev and c > o_prev and o < c_prev:
-                data['pattern2c'].iloc[i] = 'UE'
-            # Bearish Engulfing
-            if c < o and c_prev > o_prev and c < o_prev and o > c_prev:
-                data['pattern2c'].iloc[i] = 'EE'
+                # --- Two-bar patterns ---
+                data['pattern2c'].iloc[i] = 'NA'
+                # Bullish Engulfing
+                if c > o and l > l_prev and c > o_prev and body / price_range > 0.95:
+                    data['pattern2c'].iloc[i] = 'UE'
+                # Bearish Engulfing
+                if c < o and h < h_prev and c < o_prev and body / price_range > 0.95:
+                    data['pattern2c'].iloc[i] = 'EE'
 
-            # --- Three-bar patterns ---
+                # --- Three-bar patterns ---
             
         return data
 
@@ -286,6 +280,23 @@ class ServiceManager:
         # Bearish crossover: RSI crosses below Signal
         df['bearish_crossover'] = ( (df['rsi'] < df['signal']) &  (df['rsi_prev'] >= df['signal_prev']) )
         df['crossover'] = np.where(df['bullish_crossover'], "Bullish", np.where(df['bearish_crossover'], "Bearish", "Neutral"))
+
+        todayn = datetime.now().strftime('%d')
+        for i in range(1, len(df)):
+            if ( df['nday'].iloc[i] == todayn ):
+                if (df['crossover'].iloc[i] == "Bullish"):
+                    curcellval = df['rsi'].iloc[i]
+                    firstprev =df['rsi'].iloc[i-1]
+                    secondprev =df['rsi'].iloc[i-2]
+                    if (not (curcellval > firstprev and firstprev > secondprev)):
+                        df['crossover'].iloc[i] = "Neutral"
+                elif (df['crossover'].iloc[i] == "Bearish"):                    
+                    curcellval = df['rsi'].iloc[i]
+                    firstprev =df['rsi'].iloc[i-1]
+                    secondprev =df['rsi'].iloc[i-2]
+                    if (not (curcellval < firstprev and firstprev < secondprev)):
+                        df['crossover'].iloc[i] = "Neutral"
+
 
         return df
 

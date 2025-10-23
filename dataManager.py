@@ -150,17 +150,18 @@ class ServiceManager:
         df_signal = df.copy()
         df_signal = self.calculate_bollinger_bands(df_signal, period=20, std_dev=2)
         df_with_rsi = self.calculate_rsi(df_signal, period=14)
-        df_with_rsi['crossover'] = 'Neutral'
+        df_final = self.identify_crossovers(df_with_rsi)
         
-        df_sel_cols = df_with_rsi.loc[:, ['unixtime', 'rec_dt', 'nmonth', 'nday', 'hour', 'minute', 'rsi', 'signal', 'crossover','open','close','high','low', 'midbnd', 'ubnd', 'lbnd']]
+        df_sel_cols = df_final.loc[:, ['unixtime', 'rec_dt', 'nmonth', 'nday', 'hour', 'minute', 'rsi', 'signal', 'crossover','open','close','high','low', 'midbnd', 'ubnd', 'lbnd']]
         df_sel_cols['interval'] = interval
         df_sel_cols['symbol'] = symbol.replace("%3DF","") 
 
         df_sel_cols['buyval'], df_sel_cols['sellval'], df_sel_cols['stoploss']= 0, 0, 0
-        df_sel_cols['pattern'], df_sel_cols['pattern2c'] = 'NA','NA'
-        if (interval =="15m" or interval == "30m" ):
-            df_sel_cols = self.identify_crossovers(df_sel_cols)
+        if (interval =="15m" or interval == "30m" or interval == "1h" ):
             df_sel_cols = self.calculate_Buy_Sell_Values(df_sel_cols)
+        
+        df_sel_cols['pattern'], df_sel_cols['pattern2c'] = 'NA','NA'
+        if (interval == "15m" or interval == "30m"):
             df_sel_cols = self.identify_candlestick_patterns(df_sel_cols)
             self.check_forcrossover(df_sel_cols)
         

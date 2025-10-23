@@ -164,6 +164,8 @@ class ServiceManager:
         if (interval == "15m" or interval == "30m"):
             df_sel_cols = self.identify_candlestick_patterns(df_sel_cols)
             self.check_forcrossover(df_sel_cols)
+            if (interval == "15m"):
+                print(df_sel_cols.tail(50))
         
         return df_sel_cols
 
@@ -277,9 +279,9 @@ class ServiceManager:
         df['rsi_prev'] = df['rsi'].shift(1)
         df['signal_prev'] = df['signal'].shift(1)
         # Bullish crossover: RSI crosses above Signal
-        df['bullish_crossover'] = ( (df['rsi'] > df['signal']) & (df['rsi_prev'] <= df['signal_prev'])  )
+        df['bullish_crossover'] = ( (df['rsi'] - df['signal'] > 0.25) & (df['rsi_prev'] < df['signal_prev'])  )
         # Bearish crossover: RSI crosses below Signal
-        df['bearish_crossover'] = ( (df['rsi'] < df['signal']) &  (df['rsi_prev'] >= df['signal_prev']) )
+        df['bearish_crossover'] = ( ( df['signal'] - df['rsi']  > 0.25) &  (df['rsi_prev'] > df['signal_prev']) )
         df['crossover'] = np.where(df['bullish_crossover'], "Bullish", np.where(df['bearish_crossover'], "Bearish", "Neutral"))
 
         todayn = datetime.now().strftime('%d')

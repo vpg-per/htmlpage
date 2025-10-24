@@ -103,9 +103,9 @@
             {
                 var aptext = "<td style='color:" + (rowData["close"] > rowData["open"] ? "#006400" : (rowData["close"] == rowData["open"] ? "#000000" : "#c30911" )) + "'>" + rowData["open"] + "/" + rowData["close"] ;
                 var patterntext = "";
-                if (rowData["pattern"] != "NA")
+                if (rowData["pattern"] != "NA" && rowData["pattern"] != undefined)
                     patterntext = rowData["pattern"];
-                if (rowData["pattern2c"] != "NA")
+                if (rowData["pattern2c"] != "NA" && rowData["pattern2c"] != undefined)
                     patterntext = ( patterntext.length > 0 ? patterntext + ", " : "" ) + rowData["pattern2c"] 
                 if (patterntext.length > 0)         
                     aptext += ", [" + patterntext + "]";

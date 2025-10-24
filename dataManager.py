@@ -156,17 +156,15 @@ class ServiceManager:
         df_sel_cols['interval'] = interval
         df_sel_cols['symbol'] = symbol.replace("%3DF","") 
 
-        #df_sel_cols['buyval'], df_sel_cols['sellval'], df_sel_cols['stoploss']= 0, 0, 0
-        # if (interval =="15m" or interval == "30m" or interval == "1h" ):
-        #     df_sel_cols = self.calculate_Buy_Sell_Values(df_sel_cols)
+        df_sel_cols['buyval'], df_sel_cols['sellval'], df_sel_cols['stoploss']= 0, 0, 0
+        if (interval =="15m" or interval == "30m" or interval == "1h" ):
+            df_sel_cols = self.calculate_Buy_Sell_Values(df_sel_cols)
         
         #df_sel_cols['pattern'], df_sel_cols['pattern2c'] = 'NA','NA'
         if (interval == "15m" or interval == "30m"):
             #df_sel_cols = self.identify_candlestick_patterns(df_sel_cols)
             self.check_forcrossover(df_sel_cols)
-            if (interval == "15m" or interval == "30m"):
-                print(df_sel_cols[['nday', 'hour', 'minute', 'open', 'close', 'rsi', 'signal', 'crossover', 'interval', 'symbol']].tail(50))
-        
+            
         return df_sel_cols
 
     def identify_candlestick_patterns(self, data):

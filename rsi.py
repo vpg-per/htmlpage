@@ -152,7 +152,7 @@ def process_stocksignal(symbol="SPY", interval="1d"):
     global objMgr
     global g_message
     
-    df = objMgr.calculate_rsi_signal(symbol)    
+    df = objMgr.analyze_stockdata(symbol)    
     g_message = objMgr.get_message()    
 
     return df
@@ -186,7 +186,7 @@ def RangePattern():
     pm_data = ""
     rg_data = ""
     for ss in stocksymbols:  
-        df = objMgr.fetch_stock_data(ss, startPeriod=pmst_dt.timestamp(), endPeriod=reget_dt.timestamp(), interval="15m")
+        df = objMgr.download_stock_data(ss, startPeriod=pmst_dt.timestamp(), endPeriod=reget_dt.timestamp(), interval="15m")
         df_mng_stock = df[ (df['unixtime'] <= regst_dt.timestamp() - 1) ]
         if (df_mng_stock.shape[0] > 0):
             pm_open = df_mng_stock['open'].iloc[0]
@@ -220,7 +220,7 @@ def ReturnPattern():
     g_message = []
     objMgr.set_message(g_message)
     symbol = request.args.get('symbol', default='', type=str).upper()
-    stocksymbols = ['GLD', 'QQQ', 'IWM']
+    stocksymbols = ['GLD','QQQ','IWM']
     if (symbol != ""):
         stocksymbols = [symbol]
     #stocksymbols = ['NQ%3DF', 'RTY%3DF', 'GC%3DF']

@@ -27,7 +27,7 @@ class ServiceManager:
         self.data4h = None
 
 
-    def fetch_stock_data(self, symbol, startPeriod, endPeriod, interval="1d"):
+    def download_stock_data(self, symbol, startPeriod, endPeriod, interval="1d"):
         """
         Fetch SPY data from Yahoo Finance API
         
@@ -97,7 +97,7 @@ class ServiceManager:
         endPeriod = datetime.now()
         minutes_to_subtract = endPeriod.minute % 5
         endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0)
-        df = self.fetch_stock_data(symbol, stPeriod, endPeriod.timestamp(), interval)
+        df = self.download_stock_data(symbol, stPeriod, endPeriod.timestamp(), interval)
         if df is None:
             print("Failed to fetch data. Please check your internet connection.")
             return
@@ -149,8 +149,9 @@ class ServiceManager:
 
         df_signal = df.copy()
         df_signal = self.calculate_bollinger_bands(df_signal, period=20, std_dev=2)
+        df_signal = self.calculate_macd(df_signal)
         df_with_rsi = self.calculate_rsi(df_signal, period=14)
-        df_final = self.identify_crossovers(df_with_rsi)
+        df_final = self.calculate_crossover(df_with_rsi)
         
         df_sel_cols = df_final.loc[:, ['unixtime', 'rec_dt', 'nmonth', 'nday', 'hour', 'minute', 'rsi', 'signal', 'crossover','open','close','high','low', 'midbnd', 'ubnd', 'lbnd']]
         df_sel_cols['interval'] = interval
@@ -163,7 +164,7 @@ class ServiceManager:
         #df_sel_cols['pattern'], df_sel_cols['pattern2c'] = 'NA','NA'
         if (interval == "15m" or interval == "30m"):
             #df_sel_cols = self.identify_candlestick_patterns(df_sel_cols)
-            self.check_forcrossover(df_sel_cols)
+            self.prepare_crsovr_message(df_sel_cols)
             
         return df_sel_cols
 
@@ -265,21 +266,41 @@ class ServiceManager:
         
         return df
 
-    def identify_crossovers(self, df):
+    def calculate_macd(self, df, fast=12, slow=26, signal=9):
         """
-        Identify RSI crossover points
+        Calculate MACD line and Signal line
+        
+        Parameters:
+        - df: DataFrame with 'Close' prices
+        - fast: Fast EMA period (default 12)
+        - slow: Slow EMA period (default 26)
+        - signal: Signal line EMA period (default 9)
         
         Returns:
-        DataFrame with crossover signals
+        - DataFrame with MACD, Signal, and Histogram columns
         """
+        # Calculate EMAs
+        ema_fast = df['close'].ewm(span=fast, adjust=False).mean()
+        ema_slow = df['close'].ewm(span=slow, adjust=False).mean()
+        macd_line = ema_fast - ema_slow
+        signal_line = macd_line.ewm(span=signal, adjust=False).mean()
+                
+        # Add to dataframe
+        df['macd'] = macd_line
+        df['signal'] = signal_line
+        df['histogram'] = macd_line - signal_line
+        
+        return df
+        
+    def calculate_crossover(self, df):
         df = df.copy()        
         # Calculate crossover signals
         df['rsi_prev'] = df['rsi'].shift(1)
         df['signal_prev'] = df['signal'].shift(1)
         # Bullish crossover: RSI crosses above Signal
-        df['bullish_crossover'] = ( (df['rsi'] > df['signal']) & (df['rsi_prev'] <= df['signal_prev'])  )
+        df['bullish_crossover'] = ( (df['rsi'] > df['signal']) & (df['rsi_prev'] < df['signal_prev']) & (df['histogram'] > 0)  )
         # Bearish crossover: RSI crosses below Signal
-        df['bearish_crossover'] =  ( (df['rsi'] < df['signal']) &  (df['rsi_prev'] >= df['signal_prev']) )
+        df['bearish_crossover'] =  ( (df['rsi'] < df['signal']) &  (df['rsi_prev'] > df['signal_prev']) & (df['histogram'] < 0) )
         df['crossover'] = np.where(df['bullish_crossover'], "Bullish", np.where(df['bearish_crossover'], "Bearish", "Neutral"))
 
         # todayn = datetime.now().strftime('%d')
@@ -300,7 +321,24 @@ class ServiceManager:
 
         return df
 
-    def calculate_rsi_signal(self, symbol):
+    def prepare_crsovr_message(self, df):
+        # This alert is initiated for 15 or 30 minute time frame only
+
+        for date, row in df.tail(1).iterrows():
+            if (( row['crossover'] == "Bullish") | ( row['crossover'] == "Bearish")):
+                if (self.isExistsinDB(row) == False):
+                    message = ""
+                    if (row['crossover'] == "Bullish"):
+                        message = (f"{row['symbol']} Buy signal on {row['interval']} consider trade at {row['midbnd']}:{row['ubnd']}:{row['lbnd']}")
+                    elif (row['crossover'] == "Bearish"):
+                        message = (f"{row['symbol']} Sell signal on {row['interval']} consider trade at {row['midbnd']}:{row['ubnd']}:{row['lbnd']}")
+                    if (len(message) > 0):
+                        self._message.append( message )
+                        self.AddRecordtoDB(row)
+
+        return
+
+    def analyze_stockdata(self, symbol):
         todayn = datetime.now().strftime('%d')
         df_merged = { }
         self.data5m = self.GetStockdata_Byinterval(symbol, "5m")
@@ -321,23 +359,6 @@ class ServiceManager:
             df_temp = self.data4h.copy()
         df_merged=  pd.concat([df_merged, df_temp], ignore_index=True)
         return df_merged
-
-    def check_forcrossover(self, df):
-        # This alert is initiated for 15 or 30 minute time frame only
-
-        for date, row in df.tail(1).iterrows():
-            if (( row['crossover'] == "Bullish") | ( row['crossover'] == "Bearish")):
-                if (self.isExistsinDB(row) == False):
-                    message = ""
-                    if (row['crossover'] == "Bullish"):
-                        message = (f"{row['symbol']} Buy signal on {row['interval']} consider trade at {row['midbnd']}:{row['ubnd']}:{row['lbnd']}")
-                    elif (row['crossover'] == "Bearish"):
-                        message = (f"{row['symbol']} Sell signal on {row['interval']} consider trade at {row['midbnd']}:{row['ubnd']}:{row['lbnd']}")
-                    if (len(message) > 0):
-                        self._message.append( message )
-                        self.AddRecordtoDB(row)
-
-        return
 
     def send_chart_alert(self, s_message):
         url = f"https://api.telegram.org/bot{self.token}/sendMessage?chat_id={self.chat_id}&text={s_message}"

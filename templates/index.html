@@ -120,10 +120,12 @@
             var cellcolor = "#000000";
             if ( signalrow != null && !(rowData["hour"] == signalrow["hour"] && rowData["minute"] == signalrow["minute"]))
             {
-                cvrcelltext =signalrow["hour"] + ":" + signalrow["minute"] ;
                 cellcolor =  (signalrow["crossover"]  == "Bullish" ? "#006400" : (signalrow["crossover"]  == "Bearish" ? "#c30911" : "#000000" ));
                 if (parseFloat(signalrow["buyval"]) > 0 && parseFloat(signalrow["sellval"]) > 0)
+                {
                     tgtcelltext = signalrow["buyval"] + "/" + signalrow["sellval"] + "/" + signalrow["stoploss"];
+                    cvrcelltext =signalrow["hour"] + ":" + signalrow["minute"] ;
+                }
             }
             else
             {

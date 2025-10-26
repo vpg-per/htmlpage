@@ -19,7 +19,7 @@ class ServiceManager:
         todayn = str(todayn)
         df_merged = { }
         self.data5m = self.GetStockdata_Byinterval(symbol, "5m")
-        df_merged = self.data5m[(self.data5m['nday'] == todayn) ].copy().tail(25)
+        df_merged = self.data5m[(self.data5m['nday'] == todayn) ].copy().tail(20)
 
         self.data15m = self.GetStockdata_Byinterval(symbol, "15m")
         self.data30m = self.GetStockdata_Byinterval(symbol, "30m")
@@ -28,16 +28,16 @@ class ServiceManager:
         df_signal = self.calculate_bollinger_bands(self.data15m, period=20, std_dev=2)
         df_signal['buyval'], df_signal['sellval'], df_signal['stoploss']= 0, 0, 0
         self.data15m = self.calculate_Buy_Sell_Values(df_signal)
-        df_temp = self.data15m[(self.data15m['nday'] == todayn) ].copy().tail(20)
+        df_temp = self.data15m[(self.data15m['nday'] == todayn) ].copy().tail(12)
         df_merged=  pd.concat([df_merged, df_temp], ignore_index=True)
 
         df_signal = self.calculate_bollinger_bands(self.data30m, period=20, std_dev=2)
         df_signal['buyval'], df_signal['sellval'], df_signal['stoploss']= 0, 0, 0
         self.data30m = self.calculate_Buy_Sell_Values(df_signal)
-        df_temp = self.data30m[(self.data30m['nday'] == todayn) ].copy().tail(12)   
+        df_temp = self.data30m[(self.data30m['nday'] == todayn) ].copy().tail(8)   
         df_merged=  pd.concat([df_merged, df_temp], ignore_index=True)
 
-        df_temp = self.data1h[(self.data1h['nday'] == todayn) ].copy().tail(6)
+        df_temp = self.data1h[(self.data1h['nday'] == todayn) ].copy().tail(4)
         df_merged=  pd.concat([df_merged, df_temp], ignore_index=True)
         self.data4h = self.GetStockdata_Byinterval(symbol, "4h").tail(3)
         yesterdayn = (datetime.now() - timedelta(days=1)).strftime('%d')        

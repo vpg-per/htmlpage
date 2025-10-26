@@ -15,8 +15,7 @@ class ServiceManager:
         self.data4h = None
 
     def analyze_stockdata(self, symbol):
-        todayn = int(datetime.now().strftime('%d'))-1
-        todayn = str(todayn)
+        todayn = datetime.now().strftime('%d')
         df_merged = { }
         self.data5m = self.GetStockdata_Byinterval(symbol, "5m")
         df_merged = self.data5m[(self.data5m['nday'] == todayn) ].copy().tail(20)
@@ -248,8 +247,7 @@ class ServiceManager:
         return df
 
     def calculate_Buy_Sell_Values(self, df):
-        todayn = int(datetime.now().strftime('%d')) - 1
-        todayn = str(todayn)
+        todayn = datetime.now().strftime('%d')
         for i in range(1, len(df)):
             if ( df['nday'].iloc[i] == todayn ):
                 if (df['crossover'].iloc[i] == "Bullish" ):

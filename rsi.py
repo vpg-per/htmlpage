@@ -51,11 +51,9 @@ def BkOutInvoke():
 @app.route('/rangePattern')
 def RangePattern():
     dt = datetime.now()
-    pmst_string = (f"{dt.date()} 4:00:00 -0400")
+    pmst_string, regst_string, reget_string = (f"{dt.date()} 4:00:00 -0400"), (f"{dt.date()} 9:30:00 -0400"), (f"{dt.date()} 10:00:00 -0400")
     pmst_dt = datetime.strptime(pmst_string, '%Y-%m-%d %H:%M:%S %z')
-    regst_string = (f"{dt.date()} 9:30:00 -0400")
     regst_dt = datetime.strptime(regst_string, '%Y-%m-%d %H:%M:%S %z')
-    reget_string = (f"{dt.date()} 10:00:00 -0400")
     reget_dt = datetime.strptime(reget_string, '%Y-%m-%d %H:%M:%S %z')
 
     c_reget = reget_dt.timestamp()
@@ -90,6 +88,12 @@ def RangePattern():
     altMgr.DelOldRecordsFromDB()
     json_string = '{"result": "Processing is complete."}'
     return resultdata
+
+@app.route("/inputsym")
+def inputsym():
+    global g_message
+    g_message = []
+    return render_template('./inputsym.html')
 
 @app.route("/")
 def index():

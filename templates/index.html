@@ -85,7 +85,7 @@
         function drawRow(rowData, signalrow) {
             var row = $("<tr />")
             $("#DataStrategy").append(row);
-            var diff = rowData["rsi"]-rowData["signal"];            
+            var diff = rowData["rsi"]-rowData["rsignal"];            
             var cellcolor = "D3D3D3";
             if ( diff > 0)
             {
@@ -113,7 +113,7 @@
             }
             else
                 row.append($("<td style='color:" + (rowData["close"] > rowData["open"] ? "#006400" : (rowData["close"] == rowData["open"] ? "#000000" : "#c30911" )) + "'>" + rowData["open"] + "/" + rowData["close"] + "</td>"));
-            row.append($("<td style='background-color:" + cellcolor + "'>" + rowData["rsi"] + "/" + rowData["signal"] + "</td>"));
+            row.append($("<td style='background-color:" + cellcolor + "'>" + rowData["rsi"] + "/" + rowData["rsignal"] + "</td>"));
             
             var cvrcelltext = "";
             var tgtcelltext = "";

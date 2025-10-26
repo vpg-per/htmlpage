@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scalp Page</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="{{ url_for('static', filename='jquery-3.6.0.min.js') }}"></script>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        h1, h2 { color: #333; }
+        .container { display: flex; }
+        .chart img { max-width: 100%; border: 1px solid #ccc; }
+        table { border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>    
+    <div class="container">
+        <div class="chart">
+            <h5>Scalping Analysis for {{ summary.symbol }} -- {{ summary.timeframe}} Chart</h5>
+            <img src="data:image/png;base64,{{ chart_image }}" >
+        </div>
+    </div>
+</body>
+</html>

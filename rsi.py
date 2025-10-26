@@ -6,12 +6,14 @@ from datetime import datetime, timedelta, timezone
 from time import strftime
 from flask import Flask, json, render_template, request, session, render_template_string
 from dataManager import ServiceManager
+from alertManager import AlertManager
 from supresrange import SupportResistanceByInputInterval
 import base64
 
 app = Flask(__name__)
 g_message = []
 objMgr = ServiceManager()
+altMgr = AlertManager()
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -151,9 +153,11 @@ def scalping_example():
 def process_stocksignal(symbol="SPY", interval="1d"):
     global objMgr
     global g_message
+    global altMgr
     
-    df = objMgr.analyze_stockdata(symbol)    
-    g_message = objMgr.get_message()    
+    df = objMgr.analyze_stockdata(symbol)
+    altMgr.prepare_crsovr_message(df)
+    g_message = altMgr.get_message()    
 
     return df
 
@@ -179,7 +183,8 @@ def RangePattern():
     if ( int(datetime.now().timestamp()) < c_reget):
         c_reget = int(datetime.now().timestamp())
 
-    global objMgr    
+    global objMgr
+    global altMgr 
     stocksymbols = ['SPY']
     #stocksymbols = ['NQ%3DF', 'RTY%3DF', 'GC%3DF']
     allsymbols_data = []
@@ -206,9 +211,9 @@ def RangePattern():
     
     resultdata = ",".join(allsymbols_data)
     if(pm_data != "" or rg_data != ""):
-        sentmsg = objMgr.send_chart_alert(resultdata)
+        sentmsg = altMgr.send_chart_alert(resultdata)
 
-    objMgr.DelOldRecordsFromDB()
+    altMgr.DelOldRecordsFromDB()
     json_string = '{"result": "Processing is complete."}'
     return resultdata
 
@@ -216,11 +221,12 @@ def RangePattern():
 def ReturnPattern():
     global g_message
     global objMgr
+    global altMgr
 
     g_message = []
-    objMgr.set_message(g_message)
+    altMgr.set_message(g_message)
     symbol = request.args.get('symbol', default='', type=str).upper()
-    stocksymbols = ['GLD','QQQ','IWM']
+    stocksymbols = ['GLD', 'QQQ','IWM']
     if (symbol != ""):
         stocksymbols = [symbol]
     #stocksymbols = ['NQ%3DF', 'RTY%3DF', 'GC%3DF']
@@ -235,7 +241,7 @@ def ReturnPattern():
             df_allsymbols = pd.concat([df_allsymbols, df_stock], ignore_index=False)
 
     if (len(g_message) > 0):
-        sentmsg = objMgr.send_chart_alert(g_message)
+        sentmsg = altMgr.send_chart_alert(g_message)
         print(sentmsg)
 
     return df_allsymbols.to_json(orient='records', index=False)

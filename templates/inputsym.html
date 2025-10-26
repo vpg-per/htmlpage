@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Input stock symbol page</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="{{ url_for('static', filename='jquery-3.6.0.min.js') }}"></script>
+</head>
+<body>
+    <form id="myForm" method="post">
+        <div class="container">
+            <span>Symbol:&nbsp;</span><input type="text" id="txtsymbol" name="txtsymbol" placeholder="Enter your stock symbol" />
+            &nbsp<input type="button" name="btnSubmit" id="btnSubmit" value="Submit" />
+        </div>
+    </form>
+    <script>
+        $(document).ready(function () { 
+            $('#myForm').submit(function(event) {
+                event.preventDefault();
+                processUserRequest();
+            });
+
+            $('#btnSubmit').on('click', function() {
+                event.preventDefault();
+                processUserRequest();
+            });
+
+            function processUserRequest(){
+
+                var inpsymbol = $('#txtsymbol').val();
+                if (inpsymbol.length > 0)
+                {
+                    window.location.href = window.location.protocol + "//" + window.location.hostname + "?symbol=" + inpsymbol;
+                }
+                else
+                {
+                    alert("Please enter stock symbol");
+                }
+                
+            } 
+            
+        });
+    </script>
+</body>
+</html>

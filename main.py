@@ -1,114 +1,141 @@
-from flask import Flask,json,render_template
-import pandas as pd
-import matplotlib.pyplot as plt 
-import numpy as np
-import yfinance as yf
 import requests
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from datetime import datetime, timedelta, timezone
+from time import strftime
+from flask import Flask, json, render_template, request, session, render_template_string
+from dataManager import ServiceManager
+from alertManager import AlertManager
+from supresrange import SupportResistanceByInputInterval
+import base64
 
-app = Flask(__name__) 
+app = Flask(__name__)
+g_message = []
+objMgr = ServiceManager()
+altMgr = AlertManager()
 
-pd.set_option('mode.chained_assignment', None)
-pd.set_option('display.max_rows', None)
-pd.set_option('display.max_columns', None)
-
-# Initialise the data 
-fast_MA = 5
-slow_MA = 9
-initial_wealth = '1000'
-#STK = input("Enter share name : ")
-stocksymbols = ['SPY','QQQ','IWM','DIA','SMH']
-
-from datetime import date, timedelta
-today = date.today() + timedelta(days=1)
-end_date = today.strftime("%Y-%m-%d")
-prevdayrange = today- timedelta(days=4)
-start_date = prevdayrange.strftime("%Y-%m-%d")   
-
-all_df = pd.DataFrame(columns=['Symbol', 'History'])
-
-@app.route('/') 
-def ReturnHome():
-    if len(all_df) <= 0:
-        DownloadStockData()
-    return render_template('data.html')
-
-@app.route('/returnStrategy') 
-def ReturnStrategy():
-    if len(all_df) <= 0:
-        DownloadStockData() 
-    data = getStrategySummary()
-    response = app.response_class(response=json.dumps(data),status=200,mimetype='application/json')
-    return response
-
-def getStrategySummary():
-    obj = StockDataCustomStrategy("5m")
-    df1 = obj.bar_with_Strategy()
-    return df1.to_json(orient='records', index=False)
+def process_stocksignal(symbol="SPY", interval="1d"):
+    global objMgr
+    global g_message
+    global altMgr
     
+    df = objMgr.analyze_stockdata(symbol)
+    altMgr.prepare_crsovr_message(df)
+    g_message = altMgr.get_message()    
+
+    return df
+
+@app.route("/scalpPattern")
+def ScalpPattern():
+    """Run analysis and display on a web page."""
+    symbol = request.args.get('symbol', default='SPY', type=str).upper()
+    interval = request.args.get('interval', default='15m', type=str)
+    scalper = SupportResistanceByInputInterval(symbol, interval, days_back=2)
+    summary = scalper.get_scalping_summary()
+
+    if not summary:
+        return "<h1>Error: Could not generate analysis.</h1>", 500
+
+    # Generate chart image
+    image_buffer = scalper.plot_15min_chart(bars_to_show=96)
+    chart_image_base64 = base64.b64encode(image_buffer.getvalue()).decode('utf-8')
+
+    #return render_template_string(HTML_TEMPLATE, summary=summary, chart_image=chart_image_base64)
+    return render_template('./scalp.html', summary=summary, chart_image=chart_image_base64)
+
+@app.route("/bkOutInvoke")
+def BkOutInvoke():
+    return render_template('./second.html')
+    
+@app.route('/rangePattern')
+def RangePattern():
+    dt = datetime.now()
+    pmst_string, regst_string, reget_string = (f"{dt.date()} 4:00:00 -0400"), (f"{dt.date()} 9:30:00 -0400"), (f"{dt.date()} 10:00:00 -0400")
+    pmst_dt = datetime.strptime(pmst_string, '%Y-%m-%d %H:%M:%S %z')
+    regst_dt = datetime.strptime(regst_string, '%Y-%m-%d %H:%M:%S %z')
+    reget_dt = datetime.strptime(reget_string, '%Y-%m-%d %H:%M:%S %z')
+
+    c_reget = reget_dt.timestamp()
+    if ( int(datetime.now().timestamp()) < c_reget):
+        c_reget = int(datetime.now().timestamp())
+
+    global objMgr
+    global altMgr 
+    stocksymbols = ['SPY']
+    #stocksymbols = ['NQ%3DF', 'RTY%3DF', 'GC%3DF']
+    allsymbols_data = []
+    pm_data, rg_data = "", ""
+    for ss in stocksymbols:  
+        df = objMgr.download_stock_data(ss, startPeriod=pmst_dt.timestamp(), endPeriod=reget_dt.timestamp(), interval="15m")
+        df_mng_stock = df[ (df['unixtime'] <= regst_dt.timestamp() - 1) ]
+        if (df_mng_stock.shape[0] > 0):
+            pm_open, pm_highest_score, pm_lowest_score = df_mng_stock['open'].iloc[0], df_mng_stock['high'].max(), df_mng_stock['low'].min()
+            pm_close = df_mng_stock['close'].iloc[-1]
+            pm_data = f"O:{pm_open}, C:{pm_close}, L:{pm_lowest_score}, H:{pm_highest_score}"
+    
+        df_rg_stock = df[ (df['unixtime'] >= regst_dt.timestamp() - 1) ]
+        if (len(df_rg_stock) > 0):
+            rg_open, rg_highest_score, rg_lowest_score = df_rg_stock['open'].iloc[0], df_rg_stock['high'].max(), df_rg_stock['low'].min()
+            rg_close = df_rg_stock['close'].iloc[-1]
+            rg_data = f"O:{rg_open}, C:{rg_close}, L:{rg_lowest_score}, H:{rg_highest_score}"
+        allsymbols_data.append(f"{{ \"symbol\": \"{ss}\", \"pmdata\": \"{{{pm_data}}}\", \"rgdata\": \"{{{rg_data}}}\" }}")
+    
+    resultdata = ",".join(allsymbols_data)
+    if(pm_data != "" or rg_data != ""):
+        sentmsg = altMgr.send_chart_alert(resultdata)
+
+    altMgr.DelOldRecordsFromDB()
+    json_string = '{"result": "Processing is complete."}'
+    return resultdata
+
+@app.route("/inputsym")
+def inputsym():
+    global g_message
+    g_message = []
+    return render_template('./inputsym.html')
+
+@app.route("/dayTrend")
+def dayTrend():
+    global g_message
+    g_message = []
+    symbol = request.args.get('symbol', default='', type=str).upper()
+    return render_template('./dayTrend.html', symbol=symbol)
+
 @app.route('/returnPattern')
 def ReturnPattern():
-    if len(all_df) <= 0:
-        DownloadStockData()
-    obj1 = StockDataPattern("5m")
-    df1 = obj1.bar_with_pattern()
-    data = df1.to_json(orient='records', index=False)
-    response = app.response_class(response=json.dumps(data),status=200,mimetype='application/json')
-    return response
+    global g_message
+    global objMgr
+    global altMgr
 
-def DownloadStockData():
-    for x in stocksymbols:    
-        sdf = yf.download(tickers=x, period='1d', interval='5m', start=start_date, end = end_date)
-        sdf.reset_index(inplace=True) 
-        sdf['Datetime'] = pd.to_datetime(sdf['Datetime']).dt.strftime('%H:%M')
-        sdf[['Open','High','Low','Close','Adj Close']] = sdf[['Open','High','Low','Close','Adj Close']].round(2)
-        all_df.loc[len(all_df)] = [x, sdf]
-    
-class StockDataCustomStrategy:
-  
-    # The init method or constructor
-    def __init__(self, interval): 
-        # Instance Variable
-        self.interval = interval
+    g_message = []
+    altMgr.set_message(g_message)
+    symbol = request.args.get('symbol', default='', type=str).upper()
+    stocksymbols = ['GLD', 'QQQ','IWM']
+    if (symbol != ""):
+        stocksymbols = [symbol]
+    #stocksymbols = ['NQ%3DF', 'RTY%3DF', 'GC%3DF']
+    df_allsymbols = {}
+    for ss in stocksymbols:  
+        df_stock = process_stocksignal(ss)
 
-    def getStockData(self, stock, dwl_df):
-        dwl_df['fast_MA'] = dwl_df['Close'].ewm(span=fast_MA, adjust=False).mean()
-        dwl_df['slow_MA'] = dwl_df['Close'].ewm(span=slow_MA, adjust=False).mean()
-        dwl_df[['fast_MA','slow_MA']] = dwl_df[['fast_MA','slow_MA']].round(2)
-        dwl_df['intersectionpoint'] = np.where(dwl_df['fast_MA'] > dwl_df['slow_MA'], 1.0, 0.0)
-        dwl_df['Crossover'] = dwl_df['intersectionpoint'].diff()
-        filtered_col_df = dwl_df[['Datetime','Open','High','Low','Close','Crossover']].copy()
-        rslt_df = filtered_col_df[filtered_col_df['Crossover'] != 0.0] 
-        rslt_df.insert(0,'Symbol',stock) 
-        return rslt_df.tail(4)
+        df_len = len(df_allsymbols)
+        if df_len == 0:
+            df_allsymbols = df_stock.copy()
+        else:
+            df_allsymbols = pd.concat([df_allsymbols, df_stock], ignore_index=False)
 
-    def bar_with_Strategy(self):
-        appended_data = pd.DataFrame()
-        for index, row in all_df.iterrows():
-            data = self.getStockData(row['Symbol'], row['History'])
-            appended_data = appended_data._append(data,ignore_index=True)
-        appended_data = appended_data.sort_values(by='Datetime',ascending=[False])
-        return appended_data
+    if (len(g_message) > 0):
+        sentmsg = altMgr.send_chart_alert(g_message)
+        print(sentmsg)
 
-class StockDataPattern:
-    # The init method or constructor
-    def __init__(self, interval): 
-        # Instance Variable
-        self.interval = interval
-        
-    def getStockData(self, stock, dwl_5m):
-        new = [[stock,dwl_5m['Datetime'].iloc[-1],dwl_5m['High'].max(),dwl_5m['High'].min(),dwl_5m['High'].iloc[-1],dwl_5m['Low'].iloc[-1]]]
-        rslt_df = pd.DataFrame(new, columns=['Symbol','Datetime','Day_High','Day_Low','LastRow_High','LastRow_Low'])
-        return rslt_df
-        
-    def bar_with_pattern(self):
-        appended_data = pd.DataFrame()
-        for index, row in all_df.iterrows():
-            data = self.getStockData(row['Symbol'], row['History'])
-            appended_data = appended_data._append(data,ignore_index=True)
-        appended_data = appended_data.sort_values(by='Datetime',ascending=[False])
-        return appended_data
+    return df_allsymbols.to_json(orient='records', index=False)
 
+@app.route("/")
+def default():
+    return render_template('./default.html')
 
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=80)  
+if __name__ == "__main__":
+    # Run the analysis
+    #spy_data = main()
+    app.run(debug=True, host='0.0.0.0', port=80) 

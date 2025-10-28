@@ -30,9 +30,9 @@ class AlertManager:
                 if (( row['crossover'] == "Bullish") | ( row['crossover'] == "Bearish")):
                     if (self.isExistsinDB(row) == False):
                         message = ""
-                        if (row['crossover'] == "Bullish" & float( row['buyval']) > 0):
+                        if (row['crossover'] == "Bullish" and  float( row['buyval']) > 0):
                             message = (f"{row['symbol']} Buy signal on {row['interval']} consider trade at {row['buyval']}:{row['sellval']}:{row['stoploss']}")
-                        elif (row['crossover'] == "Bearish" & float( row['buyval']) > 0):
+                        elif (row['crossover'] == "Bearish" and float( row['buyval']) > 0):
                             message = (f"{row['symbol']} Sell signal on {row['interval']} consider trade at {row['buyval']}:{row['sellval']}:{row['stoploss']}")
                         if (len(message) > 0):
                             self._message.append( message )
@@ -78,7 +78,7 @@ class AlertManager:
                 with conn.cursor() as cur:
                     cur.execute(
                         "INSERT INTO rsicrossover (\"triggerTime\", \"interval\", \"crossover\", \"stocksymbol\", \"Open\", \"Close\", \"Low\", \"High\", \"NotificationSent\", \"rsiVal\", \"signal\", \"midbnd\", \"ubnd\", \"lbnd\") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);",
-                        (dttimeval, row['interval'], row['crossover'], row['symbol'], row['open'], row['close'], row['low'], row['high'], "TRUE", row['rsi'], row['rsignal'], row['midbnd'], row['ubnd'], row['lbnd'])
+                        (dttimeval, row['interval'], row['crossover'], row['symbol'], row['open'], row['close'], row['low'], row['high'], "TRUE", row['rsi'], row['rsignal'], row['buyval'], row['sellval'], row['stoploss'])
                     )
         
         except psycopg2.Error as e:

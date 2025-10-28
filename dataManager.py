@@ -249,7 +249,7 @@ class ServiceManager:
     def calculate_Buy_Sell_Values(self, df):
         todayn = datetime.now().strftime('%d')
         for i in range(1, len(df)):
-            if ( df['nday'].iloc[i] == todayn ):
+            if ( df['nday'].iloc[i] == todayn and pd.notna(df['midbnd'].iloc[i]) and df['midbnd'].iloc[i] > 0):
                 if (df['crossover'].iloc[i] == "Bullish" ):
                     sel_rechr = df['hour'].iloc[i]
                     sel_recinmin = df['minute'].iloc[i]

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Index Page</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="{{ url_for('static', filename='jquery-3.6.0.min.js') }}"></script>
+    <script type="text/javascript">
+        function drawTable(data) {
+            // Get Table headers and print
+            var head = $("<tr><th>DateTime</th><th>Symbol</th><th>Interval</th><th>Open/Close</th><th>RSI/Avg/Diff</th><th>Target</th></tr>")
+            $("#DataStrategy").append(head);
+            // Print the content of rows in DataTable
+            const ssList = new Set(data.map(item => item.symbol));
+            const intervalList = new Set(data.map(item => item.interval));
+            for (const ssitem of ssList) {
+                ssfiltereddata = data.filter(item => item.symbol === ssitem);                
+                filteredrow = GetFilteredRow(ssfiltereddata, "last", "4h");
+                filteredcrsovrow = GetFilteredRow(ssfiltereddata, "crossover", "4h");
+                if (filteredrow != null )
+                    drawRow(filteredrow, null);            
+                filteredrow = GetFilteredRow(ssfiltereddata, "last", "1h");
+                filteredcrsovrow = GetFilteredRow(ssfiltereddata, "crossover", "1h");
+                if (filteredrow != null )
+                    drawRow(filteredrow, filteredcrsovrow);
+                filteredrow = GetFilteredRow(ssfiltereddata, "last", "30m");
+                filteredcrsovrow = GetFilteredRow(ssfiltereddata, "crossover", "30m");
+                if (filteredrow != null )
+                    drawRow(filteredrow, filteredcrsovrow);
+                filteredrow = GetFilteredRow(ssfiltereddata, "last", "15m");
+                filteredcrsovrow = GetFilteredRow(ssfiltereddata, "crossover", "15m");
+                if (filteredrow != null )
+                    drawRow(filteredrow, filteredcrsovrow);
+                filteredrow = GetFilteredRow(ssfiltereddata, "last", "5m");
+                filteredcrsovrow = GetFilteredRow(ssfiltereddata, "crossover", "5m");
+                if (filteredrow != null )
+                    drawRow(filteredrow, null);
+            }
+        }
+
+        function GetFilteredRow(data, filtertype, interval)
+        {
+            if (!data || data.length === 0) {
+                return null;
+            }
+
+            if (filtertype === "last") {
+                // Filter by the specified interval first
+                const intervalData = data.filter(row => row.interval === interval);
+                if (intervalData.length === 0) {
+                    return null;
+                }
+                // Find the last day in the filtered data
+                const lastDay = Math.max(...intervalData.map(row => parseInt(row.nday, 10))).toString().padStart(2, '0');
+                // Filter for the last day
+                const lastDayData = intervalData.filter(row => row.nday === lastDay);
+                // Find the last hour in the last day's data
+                const lastHour = Math.max(...lastDayData.map(row => parseInt(row.hour, 10))).toString().padStart(2, '0');                
+                // Return the first record that matches the last day and last hour
+                const lastHourData = lastDayData.filter(row => row.hour === lastHour);
+                const lastMinute = Math.max(...lastHourData.map(row => parseInt(row.minute, 10))).toString().padStart(2, '0');
+                return lastHourData.find(row => row.minute === lastMinute) || null;
+            }
+            else if (filtertype === "crossover") {
+                // Filter by the specified interval first
+                const intervalData = data.filter(row => row.interval === interval && (row.crossover === "Bullish" || row.crossover === "Bearish"));
+                if (intervalData.length === 0) {
+                    return null;
+                }
+                // Find the last day in the filtered data
+                const lastDay = Math.max(...intervalData.map(row => parseInt(row.nday, 10))).toString().padStart(2, '0');
+                // Filter for the last day
+                const lastDayData = intervalData.filter(row => row.nday === lastDay);
+                // Find the last hour in the last day's data
+                const lastHour = Math.max(...lastDayData.map(row => parseInt(row.hour, 10))).toString().padStart(2, '0');                
+                // Return the first record that matches the last day and last hour
+                const lastHourData = lastDayData.filter(row => row.hour === lastHour);
+                const lastMinute = Math.max(...lastHourData.map(row => parseInt(row.minute, 10))).toString().padStart(2, '0');
+                return lastHourData.find(row => row.minute === lastMinute) || null;
+            }
+            return null;
+        }
+
+        function drawRow(rowData, signalrow) {
+            var row = $("<tr />")
+            $("#DataStrategy").append(row);
+            var diff = rowData["rsi"]-rowData["rsignal"];            
+            var cellcolor = "D3D3D3";
+            if ( diff > 0)
+            {
+                cellcolor = "#b3d9b3";               
+            }
+            else if (diff < 0 )
+            {
+                cellcolor = "#f6d1d1";
+            }
+            row.append($("<td>" + rowData["nmonth"] + "-" + rowData["nday"] + " " + rowData["hour"] + ":" + rowData["minute"] + "</td>"));
+            row.append($("<td>" + rowData["symbol"] + "</td>"));
+            var intcellcolor = rowData["crossover"]  == "Bullish" ? "#b3d9b3" : (rowData["crossover"]  == "Bearish" ? "#f6d1d1" : "" );
+            row.append($("<td style='background-color:" + intcellcolor + "'>" + rowData["interval"] + "</td>"));
+            if (rowData["interval"] == "15m" || rowData["interval"] == "30m")
+            {
+                var aptext = "<td style='color:" + (rowData["close"] > rowData["open"] ? "#006400" : (rowData["close"] == rowData["open"] ? "#000000" : "#c30911" )) + "'>" + rowData["open"] + "/" + rowData["close"] ;
+                var patterntext = "";
+                if (rowData["pattern"] != "NA" && rowData["pattern"] != undefined)
+                    patterntext = rowData["pattern"];
+                if (rowData["pattern2c"] != "NA" && rowData["pattern2c"] != undefined)
+                    patterntext = ( patterntext.length > 0 ? patterntext + ", " : "" ) + rowData["pattern2c"] 
+                if (patterntext.length > 0)         
+                    aptext += ", [" + patterntext + "]";
+                row.append($(aptext + "</td>"));
+            }
+            else
+                row.append($("<td style='color:" + (rowData["close"] > rowData["open"] ? "#006400" : (rowData["close"] == rowData["open"] ? "#000000" : "#c30911" )) + "'>" + rowData["open"] + "/" + rowData["close"] + "</td>"));
+            row.append($("<td style='background-color:" + cellcolor + "'>" + rowData["rsi"] + "/" + rowData["rsignal"] + "</td>"));
+            
+            var cvrcelltext = "";
+            var tgtcelltext = "";
+            var cellcolor = "#000000";
+            if ( signalrow != null && !(rowData["hour"] == signalrow["hour"] && rowData["minute"] == signalrow["minute"]))
+            {
+                cellcolor =  (signalrow["crossover"]  == "Bullish" ? "#006400" : (signalrow["crossover"]  == "Bearish" ? "#c30911" : "#000000" ));
+                if (parseFloat(signalrow["buyval"]) > 0 && parseFloat(signalrow["sellval"]) > 0)
+                {
+                    tgtcelltext = signalrow["buyval"] + "/" + signalrow["sellval"] + "/" + signalrow["stoploss"];
+                    cvrcelltext =signalrow["hour"] + ":" + signalrow["minute"] ;
+                }
+            }
+            else
+            {
+                cvrcelltext = "";
+                cellcolor = rowData["crossover"]  == "Bullish" ? "#006400" : (rowData["crossover"]  == "Bearish" ? "#c30911" : "#000000" );
+                if (parseFloat(rowData["buyval"]) > 0 && parseFloat(rowData["sellval"]) > 0)    
+                    tgtcelltext = rowData["buyval"] + "/" + rowData["sellval"] + "/" + rowData["stoploss"];
+            }
+            row.append($("<td style='color:" + cellcolor + "'>" + tgtcelltext + (cvrcelltext.trim().length > 0 ? "&nbsp; [" + cvrcelltext + "]" : "") + "</td>"));
+        }
+    </script>
+</head>
+<body>
+    
+<div>
+<table>
+	<tr>
+		<td style="vertical-align:top"><table id="DataStrategy"></table></td>
+	</tr>
+</table>
+</div>
+
+<script>
+	$(document).ready(function () { 
+		
+        var inpsymbol = '{{ symbol }}';
+        var inpurl = '/returnPattern';
+        if (inpsymbol.length > 0)
+        {
+            inpurl += "?symbol=" + inpsymbol;
+        }
+		setTimeout(() => {
+		  $.getJSON(inpurl,  
+			 function (data) { 
+				 //var objd = $.parseJSON(data); 
+				 drawTable(data); 
+		 }); 
+		}, "1000");
+        
+	});
+</script>
+</body>
+</html>

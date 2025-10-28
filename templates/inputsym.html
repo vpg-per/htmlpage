@@ -10,8 +10,12 @@
 <body>
     <form id="myForm" method="post">
         <div class="container">
-            <span>Symbol:&nbsp;</span><input type="text" id="txtsymbol" name="txtsymbol" placeholder="Enter your stock symbol" />
-            &nbsp<input type="button" name="btnSubmit" id="btnSubmit" value="Submit" />
+            <span>Symbol:&nbsp;</span>
+            <input type="text" id="txtsymbol" name="txtsymbol" placeholder="Enter your stock symbol" /><br />
+            <span>Interval:&nbsp</span>
+            <input type="text" id="txtinterval" name="txtinterval" placeholder="Enter your interval" /><br /><br />
+            <input type="button" name="btnSubmit" id="btnSubmit" value="Show Interval data" />
+            &nbsp<input type="button" name="btnScalp" id="btnScalp" value="Show Scalp chart" />
         </div>
     </form>
     <script>
@@ -26,12 +30,33 @@
                 processUserRequest();
             });
 
+            $('#btnScalp').on('click', function() {
+                event.preventDefault();
+                var inpsymbol = $('#txtsymbol').val();
+                var inpinterval = $('#txtinterval').val().length > 0 ? $('#txtinterval').val() : "";
+                var surl = window.location.protocol + "//" + window.location.hostname + "/scalpPattern";
+                if (inpsymbol.length > 0)
+                {
+                    surl = surl + "?symbol=" + inpsymbol;
+                }
+                else
+                {
+                    alert("Please enter a stock symbol or interval.");
+                    return;
+                }
+                if (inpinterval.length > 0)
+                {
+                    surl = surl + "&interval=" + inpinterval;
+                }
+                window.location.href = surl;
+            });
+
             function processUserRequest(){
 
                 var inpsymbol = $('#txtsymbol').val();
                 if (inpsymbol.length > 0)
                 {
-                    window.location.href = window.location.protocol + "//" + window.location.hostname + "?symbol=" + inpsymbol;
+                    window.location.href = window.location.protocol + "//" + window.location.hostname + "/dayTrend?symbol=" + inpsymbol;
                 }
                 else
                 {

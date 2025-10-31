@@ -24,7 +24,7 @@ class AlertManager:
         # This alert is initiated for 15 or 30 minute time frame only
 
         arr_interval = [ "15m", "30m"]
-        for i in range(1, len(arr_interval)):
+        for i in range(len(arr_interval)):
             df_sel_rows = df[df['interval'] == arr_interval[i]]
             for date, row in df_sel_rows.tail(1).iterrows():
                 if (( row['crossover'] == "Bullish") | ( row['crossover'] == "Bearish")):

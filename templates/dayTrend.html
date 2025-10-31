@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Index Page</title>
+    <title>Day trend Page</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <script src="{{ url_for('static', filename='jquery-3.6.0.min.js') }}"></script>
     <script type="text/javascript">
@@ -97,7 +97,9 @@
             }
             row.append($("<td>" + rowData["nmonth"] + "-" + rowData["nday"] + " " + rowData["hour"] + ":" + rowData["minute"] + "</td>"));
             row.append($("<td>" + rowData["symbol"] + "</td>"));
-            var intcellcolor = rowData["crossover"]  == "Bullish" ? "#b3d9b3" : (rowData["crossover"]  == "Bearish" ? "#f6d1d1" : "" );
+            var intcellcolor = "";
+            if ( rowData["buyval"] != undefined && parseFloat(rowData["buyval"]) > 0)
+                intcellcolor = rowData["crossover"]  == "Bullish" ? "#b3d9b3" : (rowData["crossover"]  == "Bearish" ? "#f6d1d1" : "" );
             row.append($("<td style='background-color:" + intcellcolor + "'>" + rowData["interval"] + "</td>"));
             if (rowData["interval"] == "15m" || rowData["interval"] == "30m")
             {

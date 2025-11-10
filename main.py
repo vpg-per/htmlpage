@@ -38,12 +38,12 @@ def CandleStickPattern():
 
     if (cs_pattern.openorderon5m is not None and cs_pattern.closeorderon5m is None):
         altMgr.AddOpenStockOrderRecordtoDB(cs_pattern.openorderon5m)
-        msgval = f"Symbol: {cs_pattern.openorderon5m['symbol']} Time: {cs_pattern.openorderon5m['hour']}:{cs_pattern.openorderon5m['minute']} Pattern: {cs_pattern.openorderon5m['cspattern']}, price: {cs_pattern.openorderon5m['stockprice']}"
+        msgval = f"Symbol: {cs_pattern.openorderon5m['symbol']} Time: {cs_pattern.openorderon5m['hour']}:{cs_pattern.openorderon5m['minute']} Pattern: {cs_pattern.openorderon5m['cspattern']}, open price: {cs_pattern.openorderon5m['stockprice']}, stoploss: {cs_pattern.openorderon5m['stoploss']}, profittarget: {cs_pattern.openorderon5m['profittarget']}"
         altMgr.send_chart_alert(msgval)
     if (cs_pattern.closeorderon5m is not None):
         altMgr.AddOpenStockOrderRecordtoDB(cs_pattern.openorderon5m, "OpenClose")
         altMgr.AddCloseStockOrderRecordtoDB(cs_pattern.closeorderon5m)
-        msgval = f"Symbol: {cs_pattern.closeorderon5m['symbol']} Time: {cs_pattern.closeorderon5m['hour']}:{cs_pattern.closeorderon5m['minute']} Pattern: {cs_pattern.closeorderon5m['cspattern']}, price: {cs_pattern.closeorderon5m['stockprice']}"
+        msgval = f"Symbol: {cs_pattern.closeorderon5m['symbol']} Time: {cs_pattern.closeorderon5m['hour']}:{cs_pattern.closeorderon5m['minute']} Pattern: {cs_pattern.closeorderon5m['cspattern']}, close price: {cs_pattern.closeorderon5m['stockprice']}"
         altMgr.send_chart_alert(msgval)
         altMgr.openorderon5m = None
         altMgr.closeorderon5m = None

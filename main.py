@@ -8,6 +8,7 @@ from flask import Flask, json, render_template, request, session, render_templat
 from dataManager import ServiceManager
 from alertManager import AlertManager
 from supresrange import SupportResistanceByInputInterval
+from csPattern import csPattern
 import base64
 
 app = Flask(__name__)
@@ -25,6 +26,29 @@ def process_stocksignal(symbol="SPY", interval="1d"):
     g_message = altMgr.get_message()    
 
     return df
+
+@app.route("/csPattern")
+def CandleStickPattern():
+    symbol = "ES%3DF"
+    dbrecval = altMgr.GetStockOrderRecordfromDB(symbol)
+    cs_pattern = csPattern()
+    if (dbrecval is not None):
+        cs_pattern.openorderon5m = dbrecval
+    cs_pattern.analyze_stockcandles(symbol)
+
+    if (cs_pattern.openorderon5m is not None and cs_pattern.closeorderon5m is None):
+        altMgr.AddOpenStockOrderRecordtoDB(cs_pattern.openorderon5m)
+        msgval = f"Symbol: {cs_pattern.openorderon5m['symbol']} Time: {cs_pattern.openorderon5m['hour']}:{cs_pattern.openorderon5m['minute']} Pattern: {cs_pattern.openorderon5m['cspattern']}, price: {cs_pattern.openorderon5m['stockprice']}"
+        altMgr.send_chart_alert(msgval)
+    if (cs_pattern.closeorderon5m is not None):
+        altMgr.AddOpenStockOrderRecordtoDB(cs_pattern.openorderon5m, "OpenClose")
+        altMgr.AddCloseStockOrderRecordtoDB(cs_pattern.closeorderon5m)
+        msgval = f"Symbol: {cs_pattern.closeorderon5m['symbol']} Time: {cs_pattern.closeorderon5m['hour']}:{cs_pattern.closeorderon5m['minute']} Pattern: {cs_pattern.closeorderon5m['cspattern']}, price: {cs_pattern.closeorderon5m['stockprice']}"
+        altMgr.send_chart_alert(msgval)
+        altMgr.openorderon5m = None
+        altMgr.closeorderon5m = None
+
+    return "In progress..."
 
 @app.route("/scalpPattern")
 def ScalpPattern():

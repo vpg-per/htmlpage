@@ -29,7 +29,7 @@ def process_stocksignal(symbol="SPY", interval="1d"):
 
 @app.route("/csPattern")
 def CandleStickPattern():
-    symbol = "ES%3DF"
+    symbol = "SPY"
     dbrecval = altMgr.GetStockOrderRecordfromDB(symbol)
     cs_pattern = csPattern()
     if (dbrecval is not None):

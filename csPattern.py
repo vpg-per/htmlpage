@@ -6,6 +6,7 @@ from time import gmtime, strftime
 from zoneinfo import ZoneInfo
 from dataManager import ServiceManager
 from itertools import islice
+import io
 
 class csPattern:
     def __init__(self):
@@ -19,7 +20,7 @@ class csPattern:
     def analyze_stockcandles(self, symbol):
         todayn = datetime.now().strftime('%d')   
 
-        self.data5m = self.invoke_downloadcall(symbol, "5m", False)
+        self.data5m = self.invoke_downloadcall(symbol, "5m")
         self.data5m = self.identify_candlebreakout_pattern(self.data5m, False, False)
         self.data5m['ninemaval'] = round(self.data5m['close'].rolling(window=9).mean(), 2)
 
@@ -28,53 +29,111 @@ class csPattern:
         self.data30m = self.invoke_downloadcall(symbol, "30m")
         self.data30m = self.identify_candlebreakout_pattern(self.data30m)
 
+        # print(self.data30m[['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(20).to_string(index=False))
+        # print(self.data15m.loc[self.data15m['unixtime'].astype(int) <= 1763487000, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(20).to_string(index=False))
+        # print(self.data5m.loc[self.data5m['unixtime'].astype(int) <= 1763487000, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'ninemaval']].tail(42).to_string(index=False))
+
+        # data_30m = """
+        # 1763479800     11   18   10     30 28.51    37.96 6626.50 6607.50 6637.75 6606.75 ES%3DF      30m   Bearish           NA           NA
+        # 1763481600     11   18   11     00 46.83    39.15 6607.50 6651.50 6654.50 6594.00 ES%3DF      30m   Bullish           NA           NA
+        # """
+        # self.data30m = self.sampledata_toDF(data_30m)
+
+        # data_15m = """
+        # 1763479800     11   18   10     30 28.74    38.56 6626.50 6618.00 6637.75 6609.75 ES%3DF      15m   Bearish           NA           NA
+        # 1763480700     11   18   10     45 25.51    36.82 6618.00 6607.50 6623.00 6606.75 ES%3DF      15m   Bearish           NA           NA
+        # 1763481600     11   18   11     00 37.27    36.88 6607.50 6623.75 6630.75 6594.00 ES%3DF      15m   Bullish           NA           NA
+        # 1763482500     11   18   11     15 51.38    38.81 6623.75 6651.50 6654.50 6616.50 ES%3DF      15m   Bullish           NA           NA
+        # """
+        # # 1763483400     11   18   11     30 52.92    40.69 6651.75 6655.25 6659.75 6645.25 ES%3DF      15m   Bullish           NA   BullishFVG
+        # self.data15m = self.sampledata_toDF(data_15m)
+
+        # data_5m = """
+        # 1763481300     11   18   10     55 31.97    36.47 6615.75 6607.50 6623.00 6607.00 ES%3DF       5m   Bearish    6618.58
+        # 1763481600     11   18   11     00 29.51    35.54 6607.50 6601.50 6611.50 6594.00 ES%3DF       5m   Bearish    6617.03
+        # 1763481900     11   18   11     05 43.07    36.55 6601.50 6618.75 6619.75 6598.00 ES%3DF       5m   Bullish    6615.94
+        # 1763482200     11   18   11     10 46.29    37.85 6619.00 6623.75 6630.75 6617.75 ES%3DF       5m   Bullish    6615.64
+        # 1763482500     11   18   11     15 48.94    39.33 6623.75 6628.00 6631.25 6616.50 ES%3DF       5m   Bullish    6616.33
+        # """
+        # self.data5m = self.sampledata_toDF(data_5m)
+       
+        loadedFromDB = True
         if (self.openorderon5m is None):
             self.parse_stockdataintervalforOpen()
+            loadedFromDB = False
+            print("Debug 3")
             print(self.openorderon5m)
-        
-        if (self.openorderon5m is not None):
+
+        if (self.openorderon5m is not None and loadedFromDB):
             self.parse_stockdataintervalforClose()
             print(self.openorderon5m)
+            if (self.closeorderon5m is not None):
+                print(self.closeorderon5m)
         
         return
 
     def parse_stockdataintervalforOpen(self):
         
         df = self.data30m.copy()
+        #df = self.data30m[self.data30m['unixtime'].astype(int) <= 1762788600].copy()
         sub_df15m, sub_df5m = None, None
-        sm_temp15m, sm_temp5m, sm_temp15m_c = None, None, None
+                
         if df is not None:
-            for i in range(1, len(df)):
-                if ( df['cspattern'].iloc[i] != df['cspattern'].iloc[i-1] and df['cspattern'].iloc[i] != "Neutral" ):
-                    sub_df15m = self.data15m[((self.data15m['hour'].astype(int) * 60 + self.data15m['minute'].astype(int)) > (int(df['hour'].iloc[i]) * 60 + int(df['minute'].iloc[i]))) & (self.data15m['nday'] == df['nday'].iloc[i]) ]
+            last_but_one_30mrow = df.iloc[-2].copy()
+            last_30mrow = df.iloc[-1].copy()
+            if ( last_30mrow['cspattern'] != last_but_one_30mrow['cspattern'] and last_30mrow['cspattern'] != "Neutral" ):
+                sub_df15m = self.data15m[ self.data15m['unixtime'].astype(int) >= int(last_but_one_30mrow['unixtime'] ) ]
+                if ( len(sub_df15m) > 1):
+                    for i in range(1, len(sub_df15m)):
+                        last_but_one_15mrow = sub_df15m.iloc[i-1].copy()
+                        last_15mrow = sub_df15m.iloc[i].copy()
+                        if (last_15mrow['cspattern'] != last_but_one_15mrow['cspattern'] and last_15mrow['cspattern'] != "Neutral" and 
+                            last_15mrow['cspattern'] == last_30mrow['cspattern']):
+                            sub_df5m = self.data5m[ (self.data5m['unixtime'].astype(int) >= int(last_but_one_15mrow['unixtime'])) ]
+                            if ( len(sub_df5m) > 1):
+                                for j in range(len(sub_df5m)):
+                                    last_5mrow = sub_df5m.iloc[j].copy()
+                                    if (last_5mrow['cspattern'] == last_15mrow['cspattern']):
+                                        stoploss = last_15mrow['low']
+                                        profittarget = last_15mrow['close']
+                                        if ( last_15mrow['cspattern'] == "Bearish"):
+                                            stoploss = last_15mrow['high']
+                                        self.openorderon5m = {"symbol": last_5mrow['symbol'], "stockprice": float(last_5mrow['open']), "cspattern": last_5mrow['cspattern'],
+                                            "unixtime": int(last_5mrow['unixtime']), 'stoploss': float(stoploss), 'profittarget': float(profittarget),
+                                            'hour': int(last_5mrow['hour']), 'minute': int(last_5mrow['minute']), "updatedTriggerTime" : int(last_5mrow['unixtime'])}
+                                        break
+                        if (self.openorderon5m is not None):
+                            break
 
-                    for j in range( len(sub_df15m[(sub_df15m['hour'].astype(int) < 15)])):
-                        sub_df5m = self.data5m[   ((self.data5m['hour'].astype(int) * 60 + self.data5m['minute'].astype(int)) > (int(sub_df15m['hour'].iloc[j]) * 60 + int(sub_df15m['minute'].iloc[j]))) & (self.data5m['nday'] == sub_df15m['nday'].iloc[j]) & (self.data5m['hour'].astype(int) < 15) ].copy()
-                        if (len(sub_df5m) > 0 and int(sub_df5m['hour'].iloc[0]) < 15):
-                            self.openorderon5m = {"symbol": sub_df5m['symbol'].iloc[0], "stockprice": float(sub_df5m['ninemaval'].iloc[0]), "cspattern": sub_df5m['cspattern'].iloc[0],
-                                                    "unixtime": int(sub_df5m['unixtime'].iloc[0]), 'stoploss': float(sub_df15m['open'].iloc[j]), 'profittarget': float(sub_df15m['close'].iloc[j]),
-                                                    'hour': int(sub_df5m['hour'].iloc[0]), 'minute': int(sub_df5m['minute'].iloc[0])}
-                        break                    
-                    sub_df15m, sub_df5m, sm_temp15m_c = None, None, None
-        
         return
 
     def parse_stockdataintervalforClose(self):
-        df = self.data15m[(self.data15m['nday'] == "07")].copy()
-        df = df[ df['hour'].astype(int) * 60 + df['minute'].astype(int) > int(self.openorderon5m['hour']) * 60 + int(self.openorderon5m['minute'])].copy()
-        if df is not None:
-            matched_data15m = df.head(1)
-            if (matched_data15m['cspattern'].iloc[0] == self.openorderon5m['cspattern'] and int(matched_data15m['hour'].iloc[0]) < 16):
-                self.openorderon5m['hour'] = int(matched_data15m['hour'].iloc[0])
-                self.openorderon5m['minute'] = int(matched_data15m['minute'].iloc[0])
-                if (float(matched_data15m['close'].iloc[0]) > float(self.openorderon5m['profittarget'])):
-                    self.openorderon5m['profittarget'] = float(matched_data15m['high'].iloc[0])
-                    self.openorderon5m['stoploss'] = float(matched_data15m['open'].iloc[0])
-            else:
-                self.closeorderon5m = {"symbol": matched_data15m['symbol'].iloc[0], "stockprice": float(matched_data15m['open'].iloc[0]), "cspattern": self.openorderon5m['cspattern'],
-                                        "unixtime": int(matched_data15m['unixtime'].iloc[0]), 'stoploss': float(matched_data15m['open'].iloc[0]), 'profittarget': float(matched_data15m['close'].iloc[0]),
-                                        'hour': int(matched_data15m['hour'].iloc[0]), 'minute': int(matched_data15m['minute'].iloc[0])}
-
+        sub_df15m = self.data15m[ (self.data15m['unixtime'].astype(int) >= int(self.openorderon5m['updatedTriggerTime'])) ].copy()
+        if ( len(sub_df15m) <= 1):
+            sub_df15m = self.data15m.tail(2).copy()
+        if (len(sub_df15m) > 1):
+            last_but_one_15mrow = sub_df15m.iloc[-2].copy()
+            last_15mrow = sub_df15m.iloc[-1].copy()
+            dfdata_5m = self.data5m[ (self.data5m['unixtime'].astype(int) > int(self.openorderon5m['updatedTriggerTime'])) ]
+            if (len(dfdata_5m) <= 1):
+                dfdata_5m = self.data5m.tail(2).copy()
+            if (len(dfdata_5m) > 1):
+                last_but_one_5mrow = dfdata_5m.iloc[-2].copy()
+                last_5mrow = dfdata_5m.iloc[-1].copy()
+                if (last_5mrow['cspattern'] == last_but_one_5mrow['cspattern'] and last_5mrow['cspattern'] == self.openorderon5m['cspattern']):
+                    self.openorderon5m['hour'] = int(last_5mrow['hour'])
+                    self.openorderon5m['minute'] = int(last_5mrow['minute'])
+                    self.openorderon5m['updatedTriggerTime'] = int(last_5mrow['unixtime'])
+                    if (self.openorderon5m['cspattern'] == "Bullish"):
+                        self.openorderon5m['profittarget'] = float(last_15mrow['high'])
+                        self.openorderon5m['stoploss'] = float(last_15mrow['low'])
+                    elif (self.openorderon5m['cspattern'] == "Bearish"):
+                        self.openorderon5m['profittarget'] = float(last_15mrow['low'])
+                        self.openorderon5m['stoploss'] = float(last_15mrow['high'])
+                else:
+                    self.closeorderon5m = {"symbol": last_5mrow['symbol'], "stockprice": float(last_5mrow['open']), "cspattern": last_5mrow['cspattern'],
+                        "unixtime": int(last_5mrow['unixtime']), 'stoploss': "0", 'profittarget': "0", 'hour': int(last_5mrow['hour']), 'minute': int(last_5mrow['minute'])}
+                    self.openorderon5m = None
         return
     
     def identify_candlebreakout_pattern(self, df, engulfFlag=True, fvgFlag=True):
@@ -114,13 +173,23 @@ class csPattern:
 
     def invoke_downloadcall(self, symbol, interval="15m", rsiFlag=True):
                 
-        stPeriod = int((datetime.now()- timedelta(days=3)).timestamp()) 
+        stPeriod = int((datetime.now()- timedelta(days=2)).timestamp()) 
         endPeriod = datetime.now()
-        minutes_to_subtract = endPeriod.minute % 15
-        endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0).timestamp() - 1
-        df = self.objMgr.download_stock_data(symbol, stPeriod, endPeriod, interval)
-        if (interval=="30m"):
+        minutes_to_subtract = endPeriod.minute % 5
+        endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0)
+        df = self.objMgr.download_stock_data(symbol, stPeriod, endPeriod.timestamp(), interval)
+
+        if (interval=="5m"):
+            df = df[(df['unixtime'] <= endPeriod.timestamp()) & (df['minute'].isin(["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"])) ]
+        elif (interval=="15m"):
+            minutes_to_subtract = endPeriod.minute % 15
+            endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0).timestamp() - 1
+            df = df[(df['unixtime'] <= endPeriod) & (df['minute'].isin(["00", "15", "30", "45"])) ]
+        elif (interval=="30m"):
+            minutes_to_subtract = endPeriod.minute % 30
+            endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0).timestamp() - 1
             df = df[(df['unixtime'] <= endPeriod) & (df['minute'].isin(["00", "30"])) ]
+
         df['symbol']=symbol
         df['interval']=interval
         if (rsiFlag):
@@ -131,5 +200,17 @@ class csPattern:
 
         return df
 
+    def sampledata_toDF(self, data):
+        column_names = [
+            'unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal', 'open', 'close', 'high', 'low',
+            'symbol', 'interval', 'cspattern', 'cstwopattern', 'csfvgpattern'
+        ]
 
+        df = pd.read_csv(io.StringIO(data),
+        sep=r'\s+',              # Regular expression to match one or more whitespace characters
+        header=None,             # No header row in the input data
+        names=column_names,      # Assign the defined column names
+        engine='python'          # 'python' engine is required for complex regex separators
+        )
+        return df
         

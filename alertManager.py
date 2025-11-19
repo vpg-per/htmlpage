@@ -122,20 +122,21 @@ class AlertManager:
         try:
             with psycopg2.connect(conn_string) as conn:
                 with conn.cursor() as cur:
-                    cur.execute("Select * from stockorder where \"symbol\"=%s and \"OrderType\"=%s and \"transstate\"='Open' and \"triggerTime\"=%s; ", (row['symbol'], row['cspattern'], row['unixtime'],))
+                    #cur.execute("Select * from stockorder where \"symbol\"=%s and \"OrderType\"=%s and \"transstate\"='Open' and \"triggerTime\"=%s; ", (row['symbol'], row['cspattern'], row['unixtime'],))
+                    cur.execute("Select * from stockorder where \"symbol\"=%s and \"OrderType\"=%s and \"transstate\"='Open'; ", (row['symbol'], row['cspattern'],))
                     if (cur.rowcount <= 0 ):
                         cur.execute(
-                            "INSERT INTO stockorder (\"triggerTime\", \"symbol\", \"OrderType\", \"stockprice\", \"stoploss\", \"profittarget\", \"hour\", \"minute\",\"transstate\") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);",
-                            (row['unixtime'], row['symbol'], row['cspattern'], row['stockprice'], row['stoploss'], row['profittarget'], row['hour'], row['minute'], "Open")
+                            "INSERT INTO stockorder (\"triggerTime\", \"symbol\", \"OrderType\", \"stockprice\", \"stoploss\", \"profittarget\", \"hour\", \"minute\",\"transstate\",\"updatedTriggerTime\") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);",
+                            (row['unixtime'], row['symbol'], row['cspattern'], row['stockprice'], row['stoploss'], row['profittarget'], row['hour'], row['minute'], "Open", row['updatedTriggerTime'])
                         )
                     else:
                         if (transstate == "Open"):
                             cur.execute(
-                                "UPDATE stockorder SET \"hour\"=%s, \"minute\"=%s, \"profittarget\"=%s, \"stoploss\"=%s WHERE \"triggerTime\"=%s and \"symbol\"=%s and \"OrderType\"=%s and \"transstate\"='Open';", (row['hour'], row['minute'], row['profittarget'], row['stoploss'], row['unixtime'], row['symbol'], row['cspattern'])
+                                "UPDATE stockorder SET \"hour\"=%s, \"minute\"=%s, \"profittarget\"=%s, \"stoploss\"=%s, \"updatedTriggerTime\"=%s WHERE \"triggerTime\"=%s and \"symbol\"=%s and \"OrderType\"=%s and \"transstate\"='Open';", (row['hour'], row['minute'], row['profittarget'], row['stoploss'], row['updatedTriggerTime'], str(row['unixtime']), row['symbol'], row['cspattern'],)
                             )
                         else:
                             cur.execute(
-                                "UPDATE stockorder SET \"hour\"=%s, \"minute\"=%s, \"profittarget\"=%s, \"stoploss\"=%s, \"transstate\"=%s WHERE \"triggerTime\"=%s and \"symbol\"=%s and \"OrderType\"=%s;", (row['hour'], row['minute'], row['profittarget'], row['stoploss'], transstate, row['unixtime'], row['symbol'], row['cspattern'],)
+                                "UPDATE stockorder SET \"hour\"=%s, \"minute\"=%s, \"profittarget\"=%s, \"stoploss\"=%s, \"transstate\"=%s WHERE \"triggerTime\"=%s and \"symbol\"=%s and \"OrderType\"=%s;", (row['hour'], row['minute'], row['profittarget'], row['stoploss'], transstate, str(row['unixtime']), row['symbol'], row['cspattern'],)
                             )
         except psycopg2.Error as e:
             print(f"Error connecting to or querying the database: {e}")
@@ -149,13 +150,13 @@ class AlertManager:
             with psycopg2.connect(conn_string) as conn:
                 # Open a cursor to perform database operations
                 with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
-                    cur.execute("Select \"triggerTime\", \"symbol\", \"OrderType\", \"stockprice\", \"stoploss\", \"profittarget\", \"hour\", \"minute\", \"transstate\" from stockorder where \"symbol\"=%s and \"transstate\"='Open'; ", (symbol,))
+                    cur.execute("Select \"triggerTime\", \"symbol\", \"OrderType\", \"stockprice\", \"stoploss\", \"profittarget\", \"hour\", \"minute\", \"transstate\", \"updatedTriggerTime\" from stockorder where \"symbol\"=%s and \"transstate\"='Open'; ", (symbol,))
                     if (cur.rowcount > 0 ):
                         rows = cur.fetchall()
                         for row in rows:
                             recdata = {"symbol": row['symbol'], "stockprice": row['stockprice'], "cspattern": row['OrderType'],
                                 "unixtime": row['triggerTime'], 'stoploss': row['stoploss'], 'profittarget': row['profittarget'],
-                                'hour': row['hour'], 'minute': row['minute'], 'transstate': row['transstate'] }
+                                'hour': row['hour'], 'minute': row['minute'], 'transstate': row['transstate'], 'updatedTriggerTime': row['updatedTriggerTime'] }
 
                 cur.close()
             conn.close()
@@ -177,4 +178,3 @@ class AlertManager:
         except psycopg2.Error as e:
             print(f"Error connecting to or querying the database: {e}")
         return
-

@@ -29,46 +29,14 @@ class csPattern:
         self.data30m = self.invoke_downloadcall(symbol, "30m")
         self.data30m = self.identify_candlebreakout_pattern(self.data30m)
 
-        # print(self.data30m[['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(20).to_string(index=False))
-        # print(self.data15m.loc[self.data15m['unixtime'].astype(int) <= 1763487000, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(20).to_string(index=False))
-        # print(self.data5m.loc[self.data5m['unixtime'].astype(int) <= 1763487000, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'ninemaval']].tail(42).to_string(index=False))
-
-        # data_30m = """
-        # 1763479800     11   18   10     30 28.51    37.96 6626.50 6607.50 6637.75 6606.75 ES%3DF      30m   Bearish           NA           NA
-        # 1763481600     11   18   11     00 46.83    39.15 6607.50 6651.50 6654.50 6594.00 ES%3DF      30m   Bullish           NA           NA
-        # """
-        # self.data30m = self.sampledata_toDF(data_30m)
-
-        # data_15m = """
-        # 1763479800     11   18   10     30 28.74    38.56 6626.50 6618.00 6637.75 6609.75 ES%3DF      15m   Bearish           NA           NA
-        # 1763480700     11   18   10     45 25.51    36.82 6618.00 6607.50 6623.00 6606.75 ES%3DF      15m   Bearish           NA           NA
-        # 1763481600     11   18   11     00 37.27    36.88 6607.50 6623.75 6630.75 6594.00 ES%3DF      15m   Bullish           NA           NA
-        # 1763482500     11   18   11     15 51.38    38.81 6623.75 6651.50 6654.50 6616.50 ES%3DF      15m   Bullish           NA           NA
-        # """
-        # # 1763483400     11   18   11     30 52.92    40.69 6651.75 6655.25 6659.75 6645.25 ES%3DF      15m   Bullish           NA   BullishFVG
-        # self.data15m = self.sampledata_toDF(data_15m)
-
-        # data_5m = """
-        # 1763481300     11   18   10     55 31.97    36.47 6615.75 6607.50 6623.00 6607.00 ES%3DF       5m   Bearish    6618.58
-        # 1763481600     11   18   11     00 29.51    35.54 6607.50 6601.50 6611.50 6594.00 ES%3DF       5m   Bearish    6617.03
-        # 1763481900     11   18   11     05 43.07    36.55 6601.50 6618.75 6619.75 6598.00 ES%3DF       5m   Bullish    6615.94
-        # 1763482200     11   18   11     10 46.29    37.85 6619.00 6623.75 6630.75 6617.75 ES%3DF       5m   Bullish    6615.64
-        # 1763482500     11   18   11     15 48.94    39.33 6623.75 6628.00 6631.25 6616.50 ES%3DF       5m   Bullish    6616.33
-        # """
-        # self.data5m = self.sampledata_toDF(data_5m)
-       
+        #self.ResettoSampleData()   
         loadedFromDB = True
         if (self.openorderon5m is None):
             self.parse_stockdataintervalforOpen()
             loadedFromDB = False
-            print("Debug 3")
-            print(self.openorderon5m)
 
         if (self.openorderon5m is not None and loadedFromDB):
             self.parse_stockdataintervalforClose()
-            print(self.openorderon5m)
-            if (self.closeorderon5m is not None):
-                print(self.closeorderon5m)
         
         return
 
@@ -199,6 +167,37 @@ class csPattern:
             df = df.loc[:, ['unixtime', 'nmonth', 'nday', 'hour', 'minute', 'open','close','high','low', 'symbol', 'interval']]
 
         return df
+
+    def ResettoSampleData(self):
+
+        # print(self.data30m[['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(20).to_string(index=False))
+        # print(self.data15m.loc[self.data15m['unixtime'].astype(int) <= 1763487000, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(20).to_string(index=False))
+        # print(self.data5m.loc[self.data5m['unixtime'].astype(int) <= 1763487000, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'ninemaval']].tail(42).to_string(index=False))
+
+        data_30m = """
+        1763479800     11   18   10     30 28.51    37.96 6626.50 6607.50 6637.75 6606.75 ES%3DF      30m   Bearish           NA           NA
+        1763481600     11   18   11     00 46.83    39.15 6607.50 6651.50 6654.50 6594.00 ES%3DF      30m   Bullish           NA           NA
+        """
+        self.data30m = self.sampledata_toDF(data_30m)
+
+        data_15m = """
+        1763479800     11   18   10     30 28.74    38.56 6626.50 6618.00 6637.75 6609.75 ES%3DF      15m   Bearish           NA           NA
+        1763480700     11   18   10     45 25.51    36.82 6618.00 6607.50 6623.00 6606.75 ES%3DF      15m   Bearish           NA           NA
+        1763481600     11   18   11     00 37.27    36.88 6607.50 6623.75 6630.75 6594.00 ES%3DF      15m   Bullish           NA           NA
+        """
+        # 1763482500     11   18   11     15 51.38    38.81 6623.75 6651.50 6654.50 6616.50 ES%3DF      15m   Bullish           NA           NA
+        # 1763483400     11   18   11     30 52.92    40.69 6651.75 6655.25 6659.75 6645.25 ES%3DF      15m   Bullish           NA   BullishFVG
+        self.data15m = self.sampledata_toDF(data_15m)
+
+        data_5m = """
+        1763481300     11   18   10     55 31.97    36.47 6615.75 6607.50 6623.00 6607.00 ES%3DF       5m   Bearish    6618.58
+        1763481600     11   18   11     00 29.51    35.54 6607.50 6601.50 6611.50 6594.00 ES%3DF       5m   Bearish    6617.03
+        1763481900     11   18   11     05 43.07    36.55 6601.50 6618.75 6619.75 6598.00 ES%3DF       5m   Bullish    6615.94
+        1763482200     11   18   11     10 46.29    37.85 6619.00 6623.75 6630.75 6617.75 ES%3DF       5m   Bullish    6615.64
+        1763482500     11   18   11     15 48.94    39.33 6623.75 6628.00 6631.25 6616.50 ES%3DF       5m   Bullish    6616.33
+        """
+        self.data5m = self.sampledata_toDF(data_5m)
+        return
 
     def sampledata_toDF(self, data):
         column_names = [

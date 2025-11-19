@@ -41,9 +41,7 @@ class csPattern:
         return
 
     def parse_stockdataintervalforOpen(self):
-        
         df = self.data30m.copy()
-        #df = self.data30m[self.data30m['unixtime'].astype(int) <= 1762788600].copy()
         sub_df15m, sub_df5m = None, None
                 
         if df is not None:
@@ -76,6 +74,7 @@ class csPattern:
         return
 
     def parse_stockdataintervalforClose(self):
+        
         sub_df15m = self.data15m[ (self.data15m['unixtime'].astype(int) >= int(self.openorderon5m['updatedTriggerTime'])) ].copy()
         if ( len(sub_df15m) <= 1):
             sub_df15m = self.data15m.tail(2).copy()
@@ -85,6 +84,7 @@ class csPattern:
             dfdata_5m = self.data5m[ (self.data5m['unixtime'].astype(int) > int(self.openorderon5m['updatedTriggerTime'])) ]
             if (len(dfdata_5m) <= 1):
                 dfdata_5m = self.data5m.tail(2).copy()
+        
             if (len(dfdata_5m) > 1):
                 last_but_one_5mrow = dfdata_5m.iloc[-2].copy()
                 last_5mrow = dfdata_5m.iloc[-1].copy()
@@ -101,7 +101,7 @@ class csPattern:
                 else:
                     self.closeorderon5m = {"symbol": last_5mrow['symbol'], "stockprice": float(last_5mrow['open']), "cspattern": last_5mrow['cspattern'],
                         "unixtime": int(last_5mrow['unixtime']), 'stoploss': "0", 'profittarget': "0", 'hour': int(last_5mrow['hour']), 'minute': int(last_5mrow['minute'])}
-                    self.openorderon5m = None
+                    
         return
     
     def identify_candlebreakout_pattern(self, df, engulfFlag=True, fvgFlag=True):

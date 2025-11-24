@@ -76,7 +76,7 @@ class ServiceManager:
                 'low': 'min',      # Lowest price in 1-hour period
                 'close': 'last'   # Last close in 1-hour period
             }).dropna()
-            endPeriod = endPeriod.replace(minute=0, second=0, microsecond=0).timestamp() - 1
+            endPeriod = endPeriod.replace(minute=0, second=0, microsecond=0).timestamp()
             df = df[ (df['unixtime'] <= endPeriod) ]
             df['unixtime'] = pd.to_numeric(df['unixtime'])
             df['rec_dt']= pd.to_datetime(df['unixtime'], unit='s').dt.tz_localize('UTC').dt.tz_convert('America/New_York').dt.date
@@ -89,7 +89,7 @@ class ServiceManager:
             hours_to_subtract = (endPeriod.hour % 4)
             endPeriod = endPeriod.replace(hour=endPeriod.hour - hours_to_subtract, minute=0, second=0, microsecond=0).timestamp() - 1
             df = df[ ( df['unixtime'] <= endPeriod) ]
-            df = df.resample('4h', origin='05:00:00-04:00').agg({
+            df = df.resample('4h', origin='05:00:00-04:00', closed='right', label='right').agg({
                 'unixtime': 'first',                
                 'open': 'first',   # First open in 4-hour period
                 'high': 'max',     # Highest price in 4-hour period  

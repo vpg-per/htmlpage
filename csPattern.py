@@ -38,7 +38,7 @@ class csPattern:
             self.parse_stockdataintervalforOpen()
             loadedFromDB = False
 
-        if (self.openorderon5m is not None and loadedFromDB):
+        if (self.openorderon5m is not None and loadedFromDB ):
             self.parse_stockdataintervalforClose()
         
         return
@@ -61,19 +61,20 @@ class csPattern:
         last_but_one_1hrow = self.data1h.iloc[-2].copy()
         last_1hrow = self.data1h.iloc[-1].copy()
         
-        if ( last_4hrow['cspattern'] == last_1hrow['cspattern'] and last_4hrow['cspattern'] != "Neutral" and last_1hrow['cspattern'] != "Neutral"):
+        if ( last_4hrow['cspattern'] == last_1hrow['cspattern'] and last_1hrow['cspattern'] != last_but_one_1hrow['cspattern'] ):
             mspattern = {"symbol":last_1hrow['symbol'], "4h-1h":last_1hrow['cspattern'], "hour":last_1hrow['hour'], "2cspattern":last_1hrow['cstwopattern'], "fvg":last_1hrow['csfvgpattern']}
         
         return mspattern
 
     def parse_stockdataintervalforOpen(self):
+        lookupts = int((datetime.now()- timedelta(minutes=48)).timestamp())
         df = self.data30m.copy()
         sub_df15m, sub_df5m = None, None
                 
         if df is not None:
             last_but_one_30mrow = df.iloc[-2].copy()
             last_30mrow = df.iloc[-1].copy()
-            if ( last_30mrow['cspattern'] != last_but_one_30mrow['cspattern'] and last_30mrow['cspattern'] != "Neutral" ):
+            if ( last_30mrow['unixtime'] > lookupts and last_30mrow['cspattern'] != last_but_one_30mrow['cspattern'] and last_30mrow['cspattern'] != "Neutral" ):
                 sub_df15m = self.data15m[ self.data15m['unixtime'].astype(int) >= int(last_but_one_30mrow['unixtime'] ) ]
                 if ( len(sub_df15m) > 1):
                     for i in range(1, len(sub_df15m)):

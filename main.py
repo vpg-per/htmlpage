@@ -77,7 +77,7 @@ def marketPattern():
         sentmsg = altMgr.send_chart_alert(resultdata)
         sentmsg = resultdata
 
-    return resultdata
+    return sentmsg
 
 @app.route("/scalpPattern")
 def ScalpPattern():

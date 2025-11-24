@@ -47,7 +47,7 @@ class ServiceManager:
         
         return df_merged
 
-    def GetStockdata_Byinterval(self, symbol, interval="1d"):
+    def GetStockdata_Byinterval(self, symbol, interval="1d", ballIndicators = True):
         df_signal = { }
                 
         stPeriod = int((datetime.now()- timedelta(days=5)).timestamp()) 
@@ -105,14 +105,16 @@ class ServiceManager:
             df['hour'] = np.where(df['hour']=="18", "17", df['hour'])
 
         df_signal = df.copy()
-        df_signal = self.calculate_macd(df_signal)
-        df_with_rsi = self.calculate_rsi(df_signal, period=14)
-        df_final = self.calculate_crossover(df_with_rsi)
-        
-        df_sel_cols = df_final.loc[:, ['unixtime', 'rec_dt', 'nmonth', 'nday', 'hour', 'minute', 'rsi', 'rsignal', 'macd', 'msignal', 'crossover','open','close','high','low']]
+        df_signal = self.calculate_rsi(df_signal, period=14)
+        if (ballIndicators):
+            df_signal = self.calculate_macd(df_signal)
+            df_signal = self.calculate_crossover(df_signal)
+            df_sel_cols = df_signal.loc[:, ['unixtime', 'rec_dt', 'nmonth', 'nday', 'hour', 'minute', 'rsi', 'rsignal', 'macd', 'msignal', 'crossover','open','close','high','low']]
+        else:
+            df_sel_cols = df_signal.loc[:, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low']]
         df_sel_cols['interval'] = interval
         df_sel_cols['symbol'] = symbol.replace("%3DF","")
-            
+
         return df_sel_cols
 
     def download_stock_data(self, symbol, startPeriod, endPeriod, interval="1d"):

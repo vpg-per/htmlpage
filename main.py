@@ -29,28 +29,55 @@ def process_stocksignal(symbol="SPY", interval="1d"):
 
 @app.route("/csPattern")
 def CandleStickPattern():
-    symbol = "SPY"
-    dbrecval = altMgr.GetStockOrderRecordfromDB(symbol)
-    cs_pattern = csPattern()
-    if (dbrecval is not None):
-        cs_pattern.openorderon5m = dbrecval
-    cs_pattern.analyze_stockcandles(symbol)
+    stocksymbols = ['SPY']
+    #stocksymbols = ['NQ%3DF', 'RTY%3DF', 'GC%3DF']
+    allsymbols_data = []
 
-    if (cs_pattern.openorderon5m is not None and cs_pattern.closeorderon5m is None):
-        altMgr.AddOpenStockOrderRecordtoDB(cs_pattern.openorderon5m)
-        msgval = f"Symbol: {cs_pattern.openorderon5m['symbol']} Time: {cs_pattern.openorderon5m['hour']}:{cs_pattern.openorderon5m['minute']} Pattern: {cs_pattern.openorderon5m['cspattern']}, open price: {cs_pattern.openorderon5m['stockprice']}, stoploss: {cs_pattern.openorderon5m['stoploss']}, profittarget: {cs_pattern.openorderon5m['profittarget']}"
-        if (cs_pattern.openorderon5m['updatedTriggerTime'] != cs_pattern.openorderon5m['unixtime']):
-            msgval = f"""Update -- Symbol: {cs_pattern.openorderon5m['symbol']} Time: {cs_pattern.openorderon5m['hour']}:{cs_pattern.openorderon5m['minute']}, Pattern: {cs_pattern.openorderon5m['cspattern']} trigger price: {cs_pattern.openorderon5m['stockprice']} cstwopattern: {cs_pattern.openorderon5m['cstwopattern']} csfvgpattern: {cs_pattern.openorderon5m['csfvgpattern']}"""
-        altMgr.send_chart_alert(msgval)
-    if (cs_pattern.closeorderon5m is not None):
-        altMgr.AddOpenStockOrderRecordtoDB(cs_pattern.openorderon5m, "OpenClose")
-        altMgr.AddCloseStockOrderRecordtoDB(cs_pattern.closeorderon5m)
-        msgval = f"Symbol: {cs_pattern.closeorderon5m['symbol']} Time: {cs_pattern.closeorderon5m['hour']}:{cs_pattern.closeorderon5m['minute']} Pattern: {cs_pattern.closeorderon5m['cspattern']}, close price: {cs_pattern.closeorderon5m['stockprice']}"
-        altMgr.send_chart_alert(msgval)
-        altMgr.openorderon5m = None
-        altMgr.closeorderon5m = None
+    for symbol in stocksymbols:
+        dbrecval = altMgr.GetStockOrderRecordfromDB(symbol)
+        cs_pattern = csPattern()
+        if (dbrecval is not None):
+            cs_pattern.openorderon5m = dbrecval
+        cs_pattern.analyze_stockcandlesLTF(symbol)
+
+        if (cs_pattern.openorderon5m is not None and cs_pattern.closeorderon5m is None):
+            altMgr.AddOpenStockOrderRecordtoDB(cs_pattern.openorderon5m)
+            if (cs_pattern.openorderon5m['updatedTriggerTime'] == cs_pattern.openorderon5m['unixtime']):
+                allsymbols_data.append( f"Symbol: {cs_pattern.openorderon5m['symbol']} Time: {cs_pattern.openorderon5m['hour']}:{cs_pattern.openorderon5m['minute']} Pattern: {cs_pattern.openorderon5m['cspattern']}, open price: {cs_pattern.openorderon5m['stockprice']}, stoploss: {cs_pattern.openorderon5m['stoploss']}, profittarget: {cs_pattern.openorderon5m['profittarget']}" )
+            elif (cs_pattern.openorderon5m['updatedTriggerTime'] != cs_pattern.openorderon5m['unixtime']):
+                allsymbols_data.append( f"""Update -- Symbol: {cs_pattern.openorderon5m['symbol']} Time: {cs_pattern.openorderon5m['hour']}:{cs_pattern.openorderon5m['minute']}, Pattern: {cs_pattern.openorderon5m['cspattern']} trigger price: {cs_pattern.openorderon5m['stockprice']} cstwopattern: {cs_pattern.openorderon5m['cstwopattern']} csfvgpattern: {cs_pattern.openorderon5m['csfvgpattern']}""")
+        if (cs_pattern.closeorderon5m is not None):
+            altMgr.AddOpenStockOrderRecordtoDB(cs_pattern.openorderon5m, "OpenClose")
+            altMgr.AddCloseStockOrderRecordtoDB(cs_pattern.closeorderon5m)
+            allsymbols_data.append(  f"Symbol: {cs_pattern.closeorderon5m['symbol']} Time: {cs_pattern.closeorderon5m['hour']}:{cs_pattern.closeorderon5m['minute']} Pattern: {cs_pattern.closeorderon5m['cspattern']}, close price: {cs_pattern.closeorderon5m['stockprice']}")
+            altMgr.openorderon5m = None
+            altMgr.closeorderon5m = None
+    
+    resultdata = ",".join(allsymbols_data)
+    if(len(allsymbols_data) > 0):
+        sentmsg = altMgr.send_chart_alert(resultdata)
 
     return "In progress..."
+
+
+@app.route("/marketPattern")
+def marketPattern():
+    stocksymbols = ['NQ%3DF', 'RTY%3DF', 'GC%3DF']
+    allsymbols_data = []
+
+    for symbol in stocksymbols:
+        cs_pattern = csPattern()
+        ret = cs_pattern.analyze_stockcandlesHTF(symbol)
+        if (ret is not None):
+            allsymbols_data.append(ret)
+    
+    sentmsg = "done!"
+    if(len(allsymbols_data) > 0):        
+        resultdata = ", ".join([str(item) for item in allsymbols_data])
+        sentmsg = altMgr.send_chart_alert(resultdata)
+        sentmsg = resultdata
+
+    return resultdata
 
 @app.route("/scalpPattern")
 def ScalpPattern():

@@ -14,22 +14,25 @@ class csPattern:
         self.data5m = None
         self.data15m = None
         self.data30m = None
+        self.data1h = None
+        self.data4h = None
         self.openorderon5m = None
         self.closeorderon5m = None
+        self.htfPattern = None
 
-    def analyze_stockcandles(self, symbol):
+    def analyze_stockcandlesLTF(self, symbol):
         todayn = datetime.now().strftime('%d')   
 
-        self.data5m = self.invoke_downloadcall(symbol, "5m")
+        self.data5m = self.objMgr.GetStockdata_Byinterval(symbol, "5m", False)
         self.data5m = self.identify_candlebreakout_pattern(self.data5m)
         self.data5m['ninemaval'] = round(self.data5m['close'].rolling(window=9).mean(), 2)
-
-        self.data15m = self.invoke_downloadcall(symbol, "15m")
+        self.data15m = self.objMgr.GetStockdata_Byinterval(symbol, "15m", False)
         self.data15m = self.identify_candlebreakout_pattern(self.data15m)
-        self.data30m = self.invoke_downloadcall(symbol, "30m")
+        self.data30m = self.objMgr.GetStockdata_Byinterval(symbol, "30m", False)
         self.data30m = self.identify_candlebreakout_pattern(self.data30m)
 
-        #self.ResettoSampleData()   
+        # self.ResettoSampleData()   
+        # return
         loadedFromDB = True
         if (self.openorderon5m is None):
             self.parse_stockdataintervalforOpen()
@@ -39,6 +42,29 @@ class csPattern:
             self.parse_stockdataintervalforClose()
         
         return
+
+    def analyze_stockcandlesHTF(self, symbol):
+        todayn = datetime.now().strftime('%d')   
+
+        self.data1h = self.objMgr.GetStockdata_Byinterval(symbol, "1h", False)
+        self.data1h = self.identify_candlebreakout_pattern(self.data1h)
+        self.data4h = self.objMgr.GetStockdata_Byinterval(symbol, "4h", False)
+        self.data4h = self.identify_candlebreakout_pattern(self.data4h)
+        ret = self.parse_forMktStructure()
+        
+        return ret
+
+    def parse_forMktStructure(self):
+        mspattern = None
+        last_but_one_4hrow = self.data4h.iloc[-2].copy()
+        last_4hrow = self.data4h.iloc[-1].copy()
+        last_but_one_1hrow = self.data1h.iloc[-2].copy()
+        last_1hrow = self.data1h.iloc[-1].copy()
+        
+        if ( last_4hrow['cspattern'] == last_1hrow['cspattern'] and last_4hrow['cspattern'] != "Neutral" and last_1hrow['cspattern'] != "Neutral"):
+            mspattern = {"symbol":last_1hrow['symbol'], "4h&1h":last_1hrow['cspattern'], "2cspattern":last_1hrow['cstwopattern'], "fvg":last_1hrow['csfvgpattern']}
+        
+        return mspattern
 
     def parse_stockdataintervalforOpen(self):
         df = self.data30m.copy()
@@ -109,9 +135,9 @@ class csPattern:
     def identify_candlebreakout_pattern(self, df, engulfFlag=True, fvgFlag=True):
         df['cspattern'] = "Neutral"
         if (engulfFlag):
-            df['cstwopattern'] = "NA"
+            df['cstwopattern'] = "na"
         if (fvgFlag):
-            df['csfvgpattern'] = "NA"
+            df['csfvgpattern'] = "na"
         for i in range(1, len(df)):    
             o, h, l, c = df['open'].iloc[i], df['high'].iloc[i], df['low'].iloc[i], df['close'].iloc[i]
             p1_open, p1_high, p1_low, p1_close = df['open'].iloc[i-1], df['high'].iloc[i-1], df['low'].iloc[i-1], df['close'].iloc[i-1]       
@@ -135,47 +161,47 @@ class csPattern:
             if (i > 1 and fvgFlag):  
                 p2_high, p2_low = df['high'].iloc[i-2], df['low'].iloc[i-2]
                 if p2_low > h:
-                    df.loc[df.index[i], 'csfvgpattern'] = "BearishFVG"
+                    df.loc[df.index[i], 'csfvgpattern'] = "EaFVG"
                 if p2_high < l:
-                    df.loc[df.index[i], 'csfvgpattern'] = "BullishFVG"
+                    df.loc[df.index[i], 'csfvgpattern'] = "UlFVG"
         
         return df
 
-    def invoke_downloadcall(self, symbol, interval="15m", rsiFlag=True):
+    # def invoke_downloadcall(self, symbol, interval="15m", rsiFlag=True):
                 
-        stPeriod = int((datetime.now()- timedelta(days=2)).timestamp()) 
-        endPeriod = datetime.now()
-        minutes_to_subtract = endPeriod.minute % 5
-        endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0)
-        df = self.objMgr.download_stock_data(symbol, stPeriod, endPeriod.timestamp(), interval)
+    #     stPeriod = int((datetime.now()- timedelta(days=2)).timestamp()) 
+    #     endPeriod = datetime.now()
+    #     minutes_to_subtract = endPeriod.minute % 5
+    #     endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0)
+    #     df = self.objMgr.download_stock_data(symbol, stPeriod, endPeriod.timestamp(), interval)
 
-        if (interval=="5m"):
-            df = df[(df['unixtime'] <= endPeriod.timestamp()) & (df['minute'].isin(["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"])) ]
-        elif (interval=="15m"):
-            minutes_to_subtract = endPeriod.minute % 15
-            endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0).timestamp() - 1
-            df = df[(df['unixtime'] <= endPeriod) & (df['minute'].isin(["00", "15", "30", "45"])) ]
-        elif (interval=="30m"):
-            minutes_to_subtract = endPeriod.minute % 30
-            endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0).timestamp() - 1
-            df = df[(df['unixtime'] <= endPeriod) & (df['minute'].isin(["00", "30"])) ]
+    #     if (interval=="5m"):
+    #         df = df[(df['unixtime'] <= endPeriod.timestamp()) & (df['minute'].isin(["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"])) ]
+    #     elif (interval=="15m"):
+    #         minutes_to_subtract = endPeriod.minute % 15
+    #         endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0).timestamp() - 1
+    #         df = df[(df['unixtime'] <= endPeriod) & (df['minute'].isin(["00", "15", "30", "45"])) ]
+    #     elif (interval=="30m"):
+    #         minutes_to_subtract = endPeriod.minute % 30
+    #         endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0).timestamp() - 1
+    #         df = df[(df['unixtime'] <= endPeriod) & (df['minute'].isin(["00", "30"])) ]
 
-        df['symbol']=symbol
-        df['interval']=interval
-        if (rsiFlag):
-            df = self.objMgr.calculate_rsi(df, period=14)
-            df = df.loc[:, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval']]
-        else:
-            df = df.loc[:, ['unixtime', 'nmonth', 'nday', 'hour', 'minute', 'open','close','high','low', 'symbol', 'interval']]
-
-        return df
+    #     df['symbol']=symbol
+    #     df['interval']=interval
+    #     df = self.objMgr.calculate_rsi(df, period=14)
+    #     df = df.loc[:, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval']]
+        
+    #     return df
 
     def ResettoSampleData(self):
 
-        print(self.data30m.loc[self.data30m['unixtime'].astype(int) <= 1763566200, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(20).to_string(index=False))
-        print(self.data15m.loc[self.data15m['unixtime'].astype(int) <= 1763566200, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(20).to_string(index=False))
-        print(self.data5m.loc[self.data5m['unixtime'].astype(int) <= 1763566200, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern', 'ninemaval']].tail(42).to_string(index=False))
-
+        # print(self.data30m.loc[self.data30m['unixtime'].astype(int) <= 1763566200, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(20).to_string(index=False))
+        # print(self.data15m.loc[self.data15m['unixtime'].astype(int) <= 1763566200, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(20).to_string(index=False))
+        # print(self.data5m.loc[self.data5m['unixtime'].astype(int) <= 1763566200, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern', 'ninemaval']].tail(42).to_string(index=False))
+        print(self.data30m[['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(30).to_string(index=False))
+        print(self.data15m[['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(40).to_string(index=False))
+        print(self.data5m[['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern', 'ninemaval']].tail(42).to_string(index=False))
+        return
         data_30m = """
         1763560800     11   19   09     00 44.78    53.21 6652.75 6642.50 6654.25 6641.25 ES%3DF      30m   Bearish           NA           NA
         1763562600     11   19   09     30 66.79    55.02 6642.50 6691.75 6693.75 6635.75 ES%3DF      30m   Bullish           NA           NA
@@ -184,9 +210,9 @@ class csPattern:
 
         data_15m = """
         1763560800     11   19   09     00 40.75    54.33 6652.75 6643.50 6654.25 6643.00 ES%3DF      15m   Bearish           NA           NA
-        1763561700     11   19   09     15 40.01    52.42 6643.75 6642.50 6647.25 6641.25 ES%3DF      15m   Bearish           NA   BearishFVG
+        1763561700     11   19   09     15 40.01    52.42 6643.75 6642.50 6647.25 6641.25 ES%3DF      15m   Bearish           NA        EaFVG
         1763562600     11   19   09     30 58.35    53.21 6642.50 6665.00 6668.25 6635.75 ES%3DF      15m   Bullish           NA           NA
-        1763563500     11   19   09     45 70.07    55.46 6665.00 6691.75 6693.75 6661.75 ES%3DF      15m   Bullish           NA   BullishFVG
+        1763563500     11   19   09     45 70.07    55.46 6665.00 6691.75 6693.75 6661.75 ES%3DF      15m   Bullish           NA        UlFVG
         """
         # 1763564400     11   19   10     00 72.91    57.78 6692.00 6701.00 6703.00 6689.25 ES%3DF      15m   Bullish           NA   BullishFVG
         self.data15m = self.sampledata_toDF(data_15m, False)

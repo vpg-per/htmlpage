@@ -62,7 +62,7 @@ class csPattern:
         last_1hrow = self.data1h.iloc[-1].copy()
         
         if ( last_4hrow['cspattern'] == last_1hrow['cspattern'] and last_4hrow['cspattern'] != "Neutral" and last_1hrow['cspattern'] != "Neutral"):
-            mspattern = {"symbol":last_1hrow['symbol'], "4h&1h":last_1hrow['cspattern'], "2cspattern":last_1hrow['cstwopattern'], "fvg":last_1hrow['csfvgpattern']}
+            mspattern = {"symbol":last_1hrow['symbol'], "4h-1h":last_1hrow['cspattern'], "2cspattern":last_1hrow['cstwopattern'], "fvg":last_1hrow['csfvgpattern']}
         
         return mspattern
 

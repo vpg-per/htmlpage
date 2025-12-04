@@ -25,7 +25,7 @@ class csPattern:
 
         self.data5m = self.objMgr.GetStockdata_Byinterval(symbol, "5m", False)
         self.data5m = self.identify_candlebreakout_pattern(self.data5m)
-        self.data5m['ninemaval'] = round(self.data5m['close'].rolling(window=9).mean(), 2)
+        self.data5m['fivemaval'] = round(self.data5m['close'].rolling(window=5).mean(), 2)
         self.data15m = self.objMgr.GetStockdata_Byinterval(symbol, "15m", False)
         self.data15m = self.identify_candlebreakout_pattern(self.data15m)
         self.data30m = self.objMgr.GetStockdata_Byinterval(symbol, "30m", False)
@@ -69,34 +69,43 @@ class csPattern:
     def parse_stockdataintervalforOpen(self):
         lookupts = int((datetime.now()- timedelta(minutes=48)).timestamp())
         df = self.data30m.copy()
-        sub_df15m, sub_df5m = None, None
+        sub_df15m, sub_df5m, last_but_one_15mrow, last_15mrow = None, None, None, None
+        found_crossover = False
                 
         if df is not None:
             last_but_one_30mrow = df.iloc[-2].copy()
             last_30mrow = df.iloc[-1].copy()
-            if ( last_30mrow['unixtime'] > lookupts and last_30mrow['cspattern'] != last_but_one_30mrow['cspattern'] and last_30mrow['cspattern'] != "Neutral" ):
+            #if ( last_30mrow['unixtime'] > lookupts and last_30mrow['cspattern'] != last_but_one_30mrow['cspattern'] and last_30mrow['cspattern'] != "Neutral" ):
+            if ( last_30mrow['cspattern'] != last_but_one_30mrow['cspattern'] and last_30mrow['cspattern'] != "Neutral" ):
                 sub_df15m = self.data15m[ self.data15m['unixtime'].astype(int) >= int(last_but_one_30mrow['unixtime'] ) ]
                 if ( len(sub_df15m) > 1):
                     for i in range(1, len(sub_df15m)):
-                        last_but_one_15mrow = sub_df15m.iloc[i-1].copy()
-                        last_15mrow = sub_df15m.iloc[i].copy()
-                        if (last_15mrow['cspattern'] != last_but_one_15mrow['cspattern'] and last_15mrow['cspattern'] != "Neutral" and 
-                            last_15mrow['cspattern'] == last_30mrow['cspattern']):
-                            sub_df5m = self.data5m[ (self.data5m['unixtime'].astype(int) >= int(last_but_one_15mrow['unixtime'])) ]
-                            if ( len(sub_df5m) > 1):
-                                for j in range(len(sub_df5m)):
-                                    last_5mrow = sub_df5m.iloc[j].copy()
-                                    if (last_5mrow['cspattern'] == last_15mrow['cspattern']):
-                                        stoploss = last_15mrow['low']
-                                        profittarget = last_15mrow['close']
-                                        if ( last_15mrow['cspattern'] == "Bearish"):
-                                            stoploss = last_15mrow['high']
-                                        self.openorderon5m = {"symbol": last_5mrow['symbol'], "stockprice": float(last_5mrow['open']), "cspattern": last_5mrow['cspattern'],
+                        if (sub_df15m.iloc[i]['cspattern'] != sub_df15m.iloc[i-1]['cspattern'] and sub_df15m.iloc[i]['cspattern'] != "Neutral" and 
+                            sub_df15m.iloc[i]['cspattern'] == last_30mrow['cspattern']):
+                            last_but_one_15mrow = sub_df15m.iloc[i-1].copy()
+                            last_15mrow = sub_df15m.iloc[i].copy()
+                            found_crossover = True
+                    if (found_crossover == True and last_15mrow is not None and last_but_one_15mrow is not None):
+                        sub_df5m = self.data5m[ (self.data5m['unixtime'].astype(int) >= int(last_15mrow['unixtime'])) ]
+                        if ( len(sub_df5m) > 1):
+                            for j in range(len(sub_df5m)):
+                                last_5mrow = sub_df5m.iloc[j].copy()
+                                if (last_5mrow['cspattern'] == last_15mrow['cspattern']):
+                                    stoploss = last_15mrow['low']
+                                    profittarget = last_15mrow['close']
+                                    if ( last_15mrow['cspattern'] == "Bearish"):
+                                        stoploss = last_15mrow['high']
+                                    
+                                    isAlertValid = False
+                                    if (last_5mrow['cspattern'] == "Bullish"):
+                                        isAlertValid = float(last_5mrow['fivemaval']) > float(stoploss) and float(last_5mrow['fivemaval']) < float(profittarget)
+                                    elif (last_5mrow['cspattern'] == "Bearish"):
+                                        isAlertValid = float(last_5mrow['fivemaval']) < float(stoploss) and float(last_5mrow['fivemaval']) > float(profittarget)
+                                    if (isAlertValid):
+                                        self.openorderon5m = {"symbol": last_5mrow['symbol'], "stockprice": float(last_5mrow['fivemaval']), "cspattern": last_5mrow['cspattern'],
                                             "unixtime": int(last_5mrow['unixtime']), 'stoploss': float(stoploss), 'profittarget': float(profittarget),
                                             'hour': int(last_5mrow['hour']), 'minute': int(last_5mrow['minute']), "updatedTriggerTime" : int(last_5mrow['unixtime'])}
                                         break
-                        if (self.openorderon5m is not None):
-                            break
 
         return
 
@@ -196,35 +205,32 @@ class csPattern:
 
     def ResettoSampleData(self):
 
-        # print(self.data30m.loc[self.data30m['unixtime'].astype(int) <= 1763566200, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(20).to_string(index=False))
-        # print(self.data15m.loc[self.data15m['unixtime'].astype(int) <= 1763566200, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(20).to_string(index=False))
-        # print(self.data5m.loc[self.data5m['unixtime'].astype(int) <= 1763566200, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern', 'ninemaval']].tail(42).to_string(index=False))
-        print(self.data30m[['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(30).to_string(index=False))
-        print(self.data15m[['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(40).to_string(index=False))
-        print(self.data5m[['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern', 'ninemaval']].tail(42).to_string(index=False))
-        return
+        # print(self.data30m.loc[self.data30m['unixtime'].astype(int) <= 1764770400, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(20).to_string(index=False))
+        # print(self.data15m.loc[self.data15m['unixtime'].astype(int) <= 1764772200, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(20).to_string(index=False))
+        # print(self.data5m.loc[self.data5m['unixtime'].astype(int) <= 1764772200, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern', 'fivemaval']].tail(42).to_string(index=False))
+        # print(self.data30m[['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(30).to_string(index=False))
+        # print(self.data15m[['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(40).to_string(index=False))
+        # print(self.data5m[['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern', 'fivemaval']].tail(42).to_string(index=False))
         data_30m = """
-        1763560800     11   19   09     00 44.78    53.21 6652.75 6642.50 6654.25 6641.25 ES%3DF      30m   Bearish           NA           NA
-        1763562600     11   19   09     30 66.79    55.02 6642.50 6691.75 6693.75 6635.75 ES%3DF      30m   Bullish           NA           NA
+        1764761400     12   03   06     30 55.08    54.97 682.89 682.64 683.02 682.64    SPY      30m   Bearish           na           na
+        1764763200     12   03   07     00 59.01    55.51 682.64 683.21 683.26 682.32    SPY      30m   Bullish           na           na
         """
         self.data30m = self.sampledata_toDF(data_30m, False)
 
         data_15m = """
-        1763560800     11   19   09     00 40.75    54.33 6652.75 6643.50 6654.25 6643.00 ES%3DF      15m   Bearish           NA           NA
-        1763561700     11   19   09     15 40.01    52.42 6643.75 6642.50 6647.25 6641.25 ES%3DF      15m   Bearish           NA        EaFVG
-        1763562600     11   19   09     30 58.35    53.21 6642.50 6665.00 6668.25 6635.75 ES%3DF      15m   Bullish           NA           NA
-        1763563500     11   19   09     45 70.07    55.46 6665.00 6691.75 6693.75 6661.75 ES%3DF      15m   Bullish           NA        UlFVG
+        1764762300     12   03   06     45 54.67    57.40 682.89 682.64 683.01 682.64    SPY      15m   Bearish           na           na
+        1764763200     12   03   07     00 59.85    57.73 682.64 683.01 683.07 682.32    SPY      15m   Bearish           na           na
+        1764764100     12   03   07     15 62.36    58.34 682.99 683.21 683.26 682.89    SPY      15m   Bullish           na           na
         """
-        # 1763564400     11   19   10     00 72.91    57.78 6692.00 6701.00 6703.00 6689.25 ES%3DF      15m   Bullish           NA   BullishFVG
         self.data15m = self.sampledata_toDF(data_15m, False)
 
         data_5m = """
-        1763562300     11   19   09     25 29.99    36.55 6646.00 6642.50 6646.75 6641.25 ES%3DF       5m   Bearish    6648.25
-        1763562600     11   19   09     30 43.61    37.49 6642.50 6649.00 6651.00 6635.75 ES%3DF       5m   Bullish    6647.47
-        1763562900     11   19   09     35 54.88    39.81 6649.00 6656.75 6658.75 6648.00 ES%3DF       5m   Bullish    6647.72
+        1764763800     12   03   07     10 59.74    55.13 682.91 683.01 683.07 682.86    SPY       5m   Bullish           na        UlFVG     682.80
+        1764764100     12   03   07     15 59.74    55.75 682.99 683.01 683.04 682.89    SPY       5m   Bullish           na           na     682.82
+        1764764400     12   03   07     20 65.52    57.05 683.01 683.23 683.25 682.89    SPY       5m   Bullish           na           na     682.94
+        1764764700     12   03   07     25 64.61    58.06 683.24 683.21 683.26 683.09    SPY       5m   Bullish           na        UlFVG     683.06
+        1764765000     12   03   07     30 68.18    59.41 683.21 683.36 683.37 683.17    SPY       5m   Bullish           na           na     683.16
         """
-        # 1763563200     11   19   09     40 63.29    42.94 6656.75 6665.00 6668.25 6651.75 ES%3DF       5m   Bullish    6649.08
-        # 1763563500     11   19   09     45 67.45    46.21 6665.00 6670.25 6673.00 6661.75 ES%3DF       5m   Bearish    6651.22
         self.data5m = self.sampledata_toDF(data_5m, True)
         return
 
@@ -236,7 +242,7 @@ class csPattern:
         if (is5m):
             column_names = [
                 'unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal', 'open', 'close', 'high', 'low',
-                'symbol', 'interval', 'cspattern', 'ninemaval'
+                'symbol', 'interval', 'cspattern', 'cstwopattern', 'csfvgpattern', 'fivemaval'
             ]
 
         df = pd.read_csv(io.StringIO(data),

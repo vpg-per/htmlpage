@@ -142,7 +142,7 @@ class AlertManager:
             print(f"Error connecting to or querying the database: {e}")
         return
 
-    def GetStockOrderRecordfromDB(self, symbol):
+    def GetStockOrderRecordfromDB(self, symbol, transstate="Open"):
         conn_string = os.getenv("DATABASE_URL")
         conn = None
         recdata = None
@@ -150,7 +150,7 @@ class AlertManager:
             with psycopg2.connect(conn_string) as conn:
                 # Open a cursor to perform database operations
                 with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
-                    cur.execute("Select \"triggerTime\", \"symbol\", \"OrderType\", \"stockprice\", \"stoploss\", \"profittarget\", \"hour\", \"minute\", \"transstate\", \"updatedTriggerTime\" from stockorder where \"symbol\"=%s and \"transstate\"='Open'; ", (symbol,))
+                    cur.execute("Select \"triggerTime\", \"symbol\", \"OrderType\", \"stockprice\", \"stoploss\", \"profittarget\", \"hour\", \"minute\", \"transstate\", \"updatedTriggerTime\" from stockorder where \"symbol\"=%s and \"transstate\"=%s; ", (symbol, transstate,))
                     if (cur.rowcount > 0 ):
                         rows = cur.fetchall()
                         for row in rows:

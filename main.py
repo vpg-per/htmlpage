@@ -10,6 +10,7 @@ from alertManager import AlertManager
 from supresrange import SupportResistanceByInputInterval
 from csPattern import csPattern
 import base64
+import os
 
 app = Flask(__name__)
 g_message = []
@@ -29,21 +30,27 @@ def process_stocksignal(symbol="SPY", interval="1d"):
 
 @app.route("/csPattern")
 def CandleStickPattern():
-    stocksymbols = ['SPY']
+    stocksymbols = os.getenv("CUSTOM_ALERT_SYMBOL")
+    if (stocksymbols is None):
+        stocksymbols = ['SPY']
+    else:
+        stocksymbols = stocksymbols.split(",")
     #stocksymbols = ['NQ%3DF', 'RTY%3DF', 'GC%3DF']
     allsymbols_data = []
 
     for symbol in stocksymbols:
-        dbrecval = altMgr.GetStockOrderRecordfromDB(symbol)
+        dbrecval = altMgr.GetStockOrderRecordfromDB(symbol, 'Open')
         cs_pattern = csPattern()
         if (dbrecval is not None):
             cs_pattern.openorderon5m = dbrecval
         cs_pattern.analyze_stockcandlesLTF(symbol)
 
         if (cs_pattern.openorderon5m is not None and cs_pattern.closeorderon5m is None):
-            altMgr.AddOpenStockOrderRecordtoDB(cs_pattern.openorderon5m)
-            if (cs_pattern.openorderon5m['updatedTriggerTime'] == cs_pattern.openorderon5m['unixtime']):
-                allsymbols_data.append( f"Symbol: {cs_pattern.openorderon5m['symbol']} Time: {cs_pattern.openorderon5m['hour']}:{cs_pattern.openorderon5m['minute']} Pattern: {cs_pattern.openorderon5m['cspattern']}, open price: {cs_pattern.openorderon5m['stockprice']}, stoploss: {cs_pattern.openorderon5m['stoploss']}, profittarget: {cs_pattern.openorderon5m['profittarget']}" )
+            recordinDBTable = altMgr.GetStockOrderRecordfromDB(symbol, 'OpenClose')
+            if (recordinDBTable is None):
+                altMgr.AddOpenStockOrderRecordtoDB(cs_pattern.openorderon5m)
+                if (cs_pattern.openorderon5m['updatedTriggerTime'] == cs_pattern.openorderon5m['unixtime']):
+                    allsymbols_data.append( f"Symbol: {cs_pattern.openorderon5m['symbol']} Time: {cs_pattern.openorderon5m['hour']}:{cs_pattern.openorderon5m['minute']} Pattern: {cs_pattern.openorderon5m['cspattern']}, open price: {cs_pattern.openorderon5m['stockprice']}, stoploss: {cs_pattern.openorderon5m['stoploss']}, profittarget: {cs_pattern.openorderon5m['profittarget']}" )
             #elif (cs_pattern.openorderon5m['updatedTriggerTime'] != cs_pattern.openorderon5m['unixtime']):
             #    allsymbols_data.append( f"""Update -- Symbol: {cs_pattern.openorderon5m['symbol']} Time: {cs_pattern.openorderon5m['hour']}:{cs_pattern.openorderon5m['minute']}, Pattern: {cs_pattern.openorderon5m['cspattern']} trigger price: {cs_pattern.openorderon5m['stockprice']} cstwopattern: {cs_pattern.openorderon5m['cstwopattern']} csfvgpattern: {cs_pattern.openorderon5m['csfvgpattern']}""")
         if (cs_pattern.closeorderon5m is not None):

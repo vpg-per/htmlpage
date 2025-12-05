@@ -49,24 +49,21 @@ def CandleStickPattern():
             recordinDBTable = altMgr.GetStockOrderRecordfromDB(symbol, 'OpenClose')
             if (recordinDBTable is None):
                 altMgr.AddOpenStockOrderRecordtoDB(cs_pattern.openorderon5m)
-                print(f"Debug 1: trigt: {cs_pattern.openorderon5m['updatedTriggerTime']}, unixt: {cs_pattern.openorderon5m['unixtime']}")
                 if (cs_pattern.openorderon5m['updatedTriggerTime'] == cs_pattern.openorderon5m['unixtime']):
                     allsymbols_data.append( f"Symbol: {cs_pattern.openorderon5m['symbol']} Time: {cs_pattern.openorderon5m['hour']}:{cs_pattern.openorderon5m['minute']} Pattern: {cs_pattern.openorderon5m['cspattern']}, open price: {cs_pattern.openorderon5m['stockprice']}, stoploss: {cs_pattern.openorderon5m['stoploss']}, profittarget: {cs_pattern.openorderon5m['profittarget']}" )
-            #elif (cs_pattern.openorderon5m['updatedTriggerTime'] != cs_pattern.openorderon5m['unixtime']):
-            #    allsymbols_data.append( f"""Update -- Symbol: {cs_pattern.openorderon5m['symbol']} Time: {cs_pattern.openorderon5m['hour']}:{cs_pattern.openorderon5m['minute']}, Pattern: {cs_pattern.openorderon5m['cspattern']} trigger price: {cs_pattern.openorderon5m['stockprice']} cstwopattern: {cs_pattern.openorderon5m['cstwopattern']} csfvgpattern: {cs_pattern.openorderon5m['csfvgpattern']}""")
+                #elif (cs_pattern.openorderon5m['updatedTriggerTime'] != cs_pattern.openorderon5m['unixtime']):
+                #    allsymbols_data.append( f"""Update -- Symbol: {cs_pattern.openorderon5m['symbol']} Time: {cs_pattern.openorderon5m['hour']}:{cs_pattern.openorderon5m['minute']}, Pattern: {cs_pattern.openorderon5m['cspattern']} trigger price: {cs_pattern.openorderon5m['stockprice']} cstwopattern: {cs_pattern.openorderon5m['cstwopattern']} csfvgpattern: {cs_pattern.openorderon5m['csfvgpattern']}""")
         if (cs_pattern.closeorderon5m is not None):
             altMgr.AddOpenStockOrderRecordtoDB(cs_pattern.openorderon5m, "OpenClose")
-            altMgr.AddCloseStockOrderRecordtoDB(cs_pattern.closeorderon5m)
             allsymbols_data.append(  f"Symbol: {cs_pattern.closeorderon5m['symbol']} Time: {cs_pattern.closeorderon5m['hour']}:{cs_pattern.closeorderon5m['minute']} Pattern: {cs_pattern.closeorderon5m['cspattern']}, close price: {cs_pattern.closeorderon5m['stockprice']}")
             altMgr.openorderon5m = None
             altMgr.closeorderon5m = None
     
     resultdata = ",".join(allsymbols_data)
     if(len(allsymbols_data) > 0):
-        print(resultdata)
         sentmsg = altMgr.send_chart_alert(resultdata)
 
-    return "In progress..."
+    return resultdata if resultdata else "done!"
 
 
 @app.route("/marketPattern")

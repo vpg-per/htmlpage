@@ -31,7 +31,7 @@ class csPattern:
         self.data30m = self.objMgr.GetStockdata_Byinterval(symbol, "30m", False)
         self.data30m = self.identify_candlebreakout_pattern(self.data30m)
 
-        self.ResettoSampleData()   
+        #self.ResettoSampleData()   
         loadedFromDB = True
         if (self.openorderon5m is None):
             self.parse_stockdataintervalforOpen()
@@ -74,11 +74,9 @@ class csPattern:
         if df is not None:
             last_but_one_30mrow = df.iloc[-2].copy()
             last_30mrow = df.iloc[-1].copy()
-            print(df.tail(20).to_string(index=False))
             #if ( last_30mrow['unixtime'] > lookupts and last_30mrow['cspattern'] != last_but_one_30mrow['cspattern'] and last_30mrow['cspattern'] != "Neutral" ):
             if ( last_30mrow['cspattern'] != last_but_one_30mrow['cspattern'] and last_30mrow['cspattern'] != "Neutral" ):
                 sub_df15m = self.data15m[ self.data15m['unixtime'].astype(int) >= int(last_but_one_30mrow['unixtime'] ) ]
-                print(sub_df15m.to_string(index=False))
                 if ( len(sub_df15m) > 1):
                     for i in range(1, len(sub_df15m)):
                         if (sub_df15m.iloc[i]['cspattern'] != sub_df15m.iloc[i-1]['cspattern'] and sub_df15m.iloc[i]['cspattern'] != "Neutral" and 
@@ -87,10 +85,7 @@ class csPattern:
                             last_15mrow = sub_df15m.iloc[i].copy()
                             found_crossover = True
                     if (found_crossover == True and last_15mrow is not None and last_but_one_15mrow is not None):
-                        print(last_but_one_15mrow.to_string(index=False))
-                        print(last_15mrow.to_string(index=False ))
                         sub_df5m = self.data5m[ (self.data5m['unixtime'].astype(int) >= int(last_15mrow['unixtime'])) ]
-                        print(sub_df5m.to_string(index=False))
                         if ( len(sub_df5m) > 1):
                             for j in range(len(sub_df5m)):
                                 last_5mrow = sub_df5m.iloc[j].copy()
@@ -110,8 +105,7 @@ class csPattern:
                                             "unixtime": int(last_5mrow['unixtime']), 'stoploss': float(stoploss), 'profittarget': float(profittarget),
                                             'hour': int(last_5mrow['hour']), 'minute': int(last_5mrow['minute']), "updatedTriggerTime" : int(last_5mrow['unixtime'])}
                                         break
-                        print(self.openorderon5m)
-
+                
         return
 
     def parse_stockdataintervalforClose(self):

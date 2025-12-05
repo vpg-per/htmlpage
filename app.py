@@ -7,9 +7,9 @@ import os
 
 def main():
 
-    stocksymbols = os.getenv("CUSTOM_ALERT_SYMBOL")
-    if (stocksymbols is None):
-        stocksymbols = ['SPY']
+    symbol = os.getenv("CUSTOM_ALERT_SYMBOL")
+    if (symbol is None):
+        symbol = 'SPY'
     else:
         stocksymbols = stocksymbols.split(",")
     altMgr = AlertManager()

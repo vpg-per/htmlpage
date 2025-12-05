@@ -49,6 +49,7 @@ def CandleStickPattern():
             recordinDBTable = altMgr.GetStockOrderRecordfromDB(symbol, 'OpenClose')
             if (recordinDBTable is None):
                 altMgr.AddOpenStockOrderRecordtoDB(cs_pattern.openorderon5m)
+                print(f"Debug 1: trigt: {cs_pattern.openorderon5m['updatedTriggerTime']}, unixt: {cs_pattern.openorderon5m['unixtime']}")
                 if (cs_pattern.openorderon5m['updatedTriggerTime'] == cs_pattern.openorderon5m['unixtime']):
                     allsymbols_data.append( f"Symbol: {cs_pattern.openorderon5m['symbol']} Time: {cs_pattern.openorderon5m['hour']}:{cs_pattern.openorderon5m['minute']} Pattern: {cs_pattern.openorderon5m['cspattern']}, open price: {cs_pattern.openorderon5m['stockprice']}, stoploss: {cs_pattern.openorderon5m['stoploss']}, profittarget: {cs_pattern.openorderon5m['profittarget']}" )
             #elif (cs_pattern.openorderon5m['updatedTriggerTime'] != cs_pattern.openorderon5m['unixtime']):
@@ -62,6 +63,7 @@ def CandleStickPattern():
     
     resultdata = ",".join(allsymbols_data)
     if(len(allsymbols_data) > 0):
+        print(resultdata)
         sentmsg = altMgr.send_chart_alert(resultdata)
 
     return "In progress..."

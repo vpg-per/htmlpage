@@ -24,15 +24,13 @@ class ServiceManager:
         self.data30m = self.GetStockdata_Byinterval(symbol, "30m")
         self.data1h = self.GetStockdata_Byinterval(symbol, "1h")
 
-        df_signal = self.calculate_bollinger_bands(self.data15m, period=20, std_dev=2)
-        df_signal['buyval'], df_signal['sellval'], df_signal['stoploss']= 0, 0, 0
-        self.data15m = self.calculate_Buy_Sell_Values(df_signal)
+        #df_signal = self.calculate_bollinger_bands(self.data15m, period=20, std_dev=2)
+        self.data15m = self.calculate_Buy_Sell_Values(self.data15m, self.data30m, 65)
         df_temp = self.data15m[(self.data15m['nday'] == todayn) ].copy().tail(12)
         df_merged=  pd.concat([df_merged, df_temp], ignore_index=True)
 
-        df_signal = self.calculate_bollinger_bands(self.data30m, period=20, std_dev=2)
-        df_signal['buyval'], df_signal['sellval'], df_signal['stoploss']= 0, 0, 0
-        self.data30m = self.calculate_Buy_Sell_Values(df_signal)
+        #df_signal = self.calculate_bollinger_bands(self.data30m, period=20, std_dev=2)
+        self.data30m = self.calculate_Buy_Sell_Values(self.data30m, self.data1h, 125)
         df_temp = self.data30m[(self.data30m['nday'] == todayn) ].copy().tail(8)   
         df_merged=  pd.concat([df_merged, df_temp], ignore_index=True)
 
@@ -50,7 +48,7 @@ class ServiceManager:
     def GetStockdata_Byinterval(self, symbol, interval="1d", ballIndicators = True):
         df_signal = { }
                 
-        stPeriod = int((datetime.now()- timedelta(days=5)).timestamp()) 
+        stPeriod = int((datetime.now()- timedelta(days=4)).timestamp()) 
         endPeriod = datetime.now()
         minutes_to_subtract = endPeriod.minute % 5
         endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0)
@@ -105,13 +103,8 @@ class ServiceManager:
             df['hour'] = np.where(df['hour']=="18", "17", df['hour'])
 
         df_signal = df.copy()
-        df_signal = self.calculate_rsi(df_signal, period=14)
-        if (ballIndicators):
-            df_signal = self.calculate_macd(df_signal)
-            df_signal = self.calculate_crossover(df_signal)
-            df_sel_cols = df_signal.loc[:, ['unixtime', 'rec_dt', 'nmonth', 'nday', 'hour', 'minute', 'rsi', 'rsignal', 'macd', 'msignal', 'crossover','open','close','high','low']]
-        else:
-            df_sel_cols = df_signal.loc[:, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low']]
+        df_signal = self.calculate_macd(df_signal)
+        df_sel_cols = df_signal.loc[:, ['unixtime', 'nmonth', 'nday', 'hour', 'minute', 'macd', 'msignal', 'histogram','open','close','high','low']]
         df_sel_cols['interval'] = interval
         df_sel_cols['symbol'] = symbol.replace("%3DF","")
 
@@ -205,7 +198,15 @@ class ServiceManager:
         # Calculate RSI
         df['rsi'] = round(100 - (100 / (1 + df['rs'])),2)        
         # Calculate Signal
-        df['rsignal'] = round(df['rsi'].ewm(span=period).mean(),2)
+        df['rsignal'] = round(df['rsi'].ewm(span=period).mean(),2)    
+        df['rsi_prev'] = df['rsi'].shift(1)
+        df['rsignal_prev'] = df['rsignal'].shift(1)
+        # Bullish crossover: RSI crosses above Signal
+        df['bullish_crossover'] = ( (df['rsi'] > df['rsignal']) & (df['rsi_prev'] < df['rsignal_prev'])  )
+        # Bearish crossover: RSI crosses below Signal
+        df['bearish_crossover'] =  ( (df['rsi'] < df['rsignal']) &  (df['rsi_prev'] > df['rsignal_prev']) )
+        df['crossover'] = np.where(df['bullish_crossover'], "Bullish", np.where(df['bearish_crossover'], "Bearish", "Neutral"))    
+        df.drop(['price_change', 'gain', 'loss', 'avg_gain', 'avg_loss', 'rs', 'rsi_prev', 'rsignal_prev', 'bullish_crossover', 'bearish_crossover'], axis=1, inplace=True)
         
         return df
 
@@ -229,70 +230,44 @@ class ServiceManager:
         signal_line = macd_line.ewm(span=signal, adjust=False).mean()
                 
         # Add to dataframe
-        df['macd'] = macd_line
-        df['msignal'] = signal_line
-        df['histogram'] = macd_line - signal_line
+        df['macd'] = round(macd_line,2) 
+        df['msignal'] = round(signal_line,2) 
+        df['histogram'] = round(macd_line - signal_line,2) 
         
         return df
         
-    def calculate_crossover(self, df):
-        df = df.copy()        
-        # Calculate crossover signals
-        df['rsi_prev'] = df['rsi'].shift(1)
-        df['rsignal_prev'] = df['rsignal'].shift(1)
-        # Bullish crossover: RSI crosses above Signal
-        df['bullish_crossover'] = ( (df['rsi'] > df['rsignal']) & (df['rsi_prev'] < df['rsignal_prev']) & (df['histogram'] > 0)  )
-        # Bearish crossover: RSI crosses below Signal
-        df['bearish_crossover'] =  ( (df['rsi'] < df['rsignal']) &  (df['rsi_prev'] > df['rsignal_prev']) & (df['histogram'] < 0) )
-        df['crossover'] = np.where(df['bullish_crossover'], "Bullish", np.where(df['bearish_crossover'], "Bearish", "Neutral"))
+    def calculate_Buy_Sell_Values(self, dfcur, dfhtf, lookupmins):
+        dfcur['buyval'], dfcur['sellval'], dfcur['stoploss']= 0, 0, 0
+        dfcur['crossover'] = "Neutral"
+        lookupts = int((datetime.now()- timedelta(minutes=lookupmins)).timestamp())
+#        dfcur = dfcur[ (dfcur['unixtime'].astype(int) >= int(lookupts)) ].copy()
+        if not dfcur.empty:
+            dfhtf = dfhtf[ (dfhtf['unixtime'].astype(int) >= int(lookupts)) ]
+            dfcur['ninemaval'] = round(dfcur['close'].rolling(window=9).mean(), 2)
+            dfcur['histogram_prev'] = dfcur['histogram'].shift(1)
 
-        return df
+            last_dfrec = dfcur.tail(1).copy()
+            if not last_dfrec.empty and not dfhtf.empty:
+                last_dfhtf_rec = dfhtf.tail(1).copy()
+                change_values = False
+                crossoverval = "Neutral"
+                if ((last_dfrec['histogram'] >= 0) & (last_dfrec['histogram_prev'] < 0)).bool():
+                    change_values = True
+                    crossoverval = "Bullish"
+                elif ((last_dfrec['histogram'] <= 0) & (last_dfrec['histogram_prev'] > 0)).bool():
+                    change_values = True
+                    crossoverval = "Bearish"
 
-    def calculate_Buy_Sell_Values(self, df):
-        todayn = datetime.now().strftime('%d')
-        for i in range(1, len(df)):
-            if ( df['nday'].iloc[i] == todayn and pd.notna(df['midbnd'].iloc[i]) and df['midbnd'].iloc[i] > 0):
-                if (df['crossover'].iloc[i] == "Bullish" ):
-                    sel_rechr = df['hour'].iloc[i]
-                    sel_recinmin = df['minute'].iloc[i]
-                    if (df['interval'].iloc[i]=="15m"):
-                        if (sel_recinmin == "00" or sel_recinmin == "15" ):
-                            sel_recinmin = "30"
-                            sel_rechr = str( int (df['hour'].iloc[i] ) - 1)
-                        elif (sel_recinmin == "30" or sel_recinmin == "45"):
-                            sel_recinmin = "00"
-                        df_matched_recs = self.data30m[ (self.data30m['nday'] == df['nday'].iloc[i]) & (self.data30m['hour'] == sel_rechr) & (self.data30m['minute'] == sel_recinmin) ]
-                    elif (df['interval'].iloc[i]=="30m"):
-                        sel_rechr = str( int (df['hour'].iloc[i] ) - 1)
-                        df_matched_recs = self.data1h[ (self.data1h['nday'] == df['nday'].iloc[i]) & (self.data1h['hour'] == sel_rechr) ]
-                    
-                    if (len(df_matched_recs) > 0):
-                        if ( float( df_matched_recs['macd'].iloc[0]) > float( df_matched_recs['msignal'].iloc[0])):
-                            df['buyval'].iloc[i] = df['midbnd'].iloc[i]
-                            df['sellval'].iloc[i] = df['ubnd'].iloc[i]
-                            df['stoploss'].iloc[i] = df['lbnd'].iloc[i]
-                elif (df['crossover'].iloc[i] == "Bearish" ):
-                    sel_rechr = df['hour'].iloc[i]
-                    sel_recinmin = df['minute'].iloc[i]
-                    if (df['interval'].iloc[i]=="15m"):
-                        if (sel_recinmin == "00" or sel_recinmin == "15" ):
-                            sel_recinmin = "30"
-                            sel_rechr = str( int (df['hour'].iloc[i] ) - 1)
-                        elif (sel_recinmin == "30" or sel_recinmin == "45"):
-                            sel_recinmin = "00"
-                        df_matched_recs = self.data30m[ (self.data30m['nday'] == df['nday'].iloc[i]) & (self.data30m['hour'] == sel_rechr) & (self.data30m['minute'] == sel_recinmin) ]
-                    elif (df['interval'].iloc[i]=="30m"):
-                        sel_rechr = str( int (df['hour'].iloc[i] ) - 1)
-                        df_matched_recs = self.data1h[ (self.data1h['nday'] == df['nday'].iloc[i]) & (self.data1h['hour'] == sel_rechr) ]
-                    
-                    if (len(df_matched_recs) > 0 ):
-                        if ( float( df_matched_recs['macd'].iloc[0]) < float( df_matched_recs['msignal'].iloc[0])):
-                            df['buyval'].iloc[i] = df['midbnd'].iloc[i]
-                            df['sellval'].iloc[i] = df['lbnd'].iloc[i]
-                            df['stoploss'].iloc[i] = df['ubnd'].iloc[i]
-
-        df.drop(['midbnd', 'ubnd', 'lbnd'], axis=1, inplace=True)
-        return df
+                if (change_values):
+                    last_row_index = last_dfrec.index[0]
+                    dfcur.loc[last_row_index, 'crossover'] = crossoverval
+                    dfcur.loc[last_row_index, 'buyval'] = last_dfrec['ninemaval'].iloc[0]
+                    dfcur.loc[last_row_index, 'sellval'] = last_dfhtf_rec['close'].iloc[0]
+                    dfcur.loc[last_row_index, 'stoploss'] = last_dfhtf_rec['open'].iloc[0]
+            
+            dfcur.drop(columns=['histogram_prev', 'ninemaval'], inplace=True)
+            
+        return dfcur
 
     def calculate_bollinger_bands(self, df, period=20, std_dev=2):
         

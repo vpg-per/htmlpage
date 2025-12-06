@@ -170,7 +170,7 @@ def ReturnPattern():
     g_message = []
     altMgr.set_message(g_message)
     symbol = request.args.get('symbol', default='', type=str).upper()
-    stocksymbols = ['GLD', 'QQQ','IWM']
+    stocksymbols = ['GLD','QQQ', 'IWM']
     if (symbol != ""):
         stocksymbols = [symbol]
     #stocksymbols = ['NQ%3DF', 'RTY%3DF', 'GC%3DF']

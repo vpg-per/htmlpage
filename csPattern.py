@@ -42,8 +42,7 @@ class csPattern:
         
         return
 
-    def analyze_stockcandlesHTF(self, symbol):
-        todayn = datetime.now().strftime('%d')   
+    def analyze_stockcandlesHTF(self, symbol):   
 
         self.data1h = self.objMgr.GetStockdata_Byinterval(symbol, "1h", False)
         self.data1h = self.identify_candlebreakout_pattern(self.data1h)

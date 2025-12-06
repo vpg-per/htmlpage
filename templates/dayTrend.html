@@ -9,7 +9,7 @@
     <script type="text/javascript">
         function drawTable(data) {
             // Get Table headers and print
-            var head = $("<tr><th>DateTime</th><th>Symbol</th><th>Interval</th><th>Open/Close</th><th>RSI/Avg/Diff</th><th>Target</th></tr>")
+            var head = $("<tr><th>DateTime</th><th>Symbol</th><th>Interval</th><th>Open/Close</th><th>MACD/Signal</th><th>Target</th></tr>")
             $("#DataStrategy").append(head);
             // Print the content of rows in DataTable
             const ssList = new Set(data.map(item => item.symbol));
@@ -85,7 +85,7 @@
         function drawRow(rowData, signalrow) {
             var row = $("<tr />")
             $("#DataStrategy").append(row);
-            var diff = rowData["rsi"]-rowData["rsignal"];            
+            var diff = rowData["macd"]-rowData["msignal"];            
             var cellcolor = "D3D3D3";
             if ( diff > 0)
             {
@@ -115,7 +115,7 @@
             }
             else
                 row.append($("<td style='color:" + (rowData["close"] > rowData["open"] ? "#006400" : (rowData["close"] == rowData["open"] ? "#000000" : "#c30911" )) + "'>" + rowData["open"] + "/" + rowData["close"] + "</td>"));
-            row.append($("<td style='background-color:" + cellcolor + "'>" + rowData["rsi"] + "/" + rowData["rsignal"] + "</td>"));
+            row.append($("<td style='background-color:" + cellcolor + "'>" + rowData["macd"] + "/" + rowData["msignal"] + "</td>"));
             
             var cvrcelltext = "";
             var tgtcelltext = "";

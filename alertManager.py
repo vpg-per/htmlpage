@@ -78,7 +78,7 @@ class AlertManager:
                 with conn.cursor() as cur:
                     cur.execute(
                         "INSERT INTO rsicrossover (\"triggerTime\", \"interval\", \"crossover\", \"stocksymbol\", \"Open\", \"Close\", \"Low\", \"High\", \"NotificationSent\", \"rsiVal\", \"signal\", \"midbnd\", \"ubnd\", \"lbnd\") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);",
-                        (dttimeval, row['interval'], row['crossover'], row['symbol'], row['open'], row['close'], row['low'], row['high'], "TRUE", row['rsi'], row['rsignal'], row['buyval'], row['sellval'], row['stoploss'])
+                        (dttimeval, row['interval'], row['crossover'], row['symbol'], row['open'], row['close'], row['low'], row['high'], "TRUE", row['macd'], row['msignal'], row['buyval'], row['sellval'], row['stoploss'])
                     )
         
         except psycopg2.Error as e:
@@ -100,21 +100,21 @@ class AlertManager:
             print(f"Error connecting to or querying the database: {e}")
         return
 
-    def AddRecordtoDB(self, row):
-        conn_string = os.getenv("DATABASE_URL")
-        conn = None
-        try:
-            dttimeval = f"{row['nmonth']}-{row['nday']} {row['hour']}:{row['minute']}"
-            with psycopg2.connect(conn_string) as conn:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        "INSERT INTO rsicrossover (\"triggerTime\", \"interval\", \"crossover\", \"stocksymbol\", \"Open\", \"Close\", \"Low\", \"High\", \"NotificationSent\", \"rsiVal\", \"signal\", \"midbnd\", \"ubnd\", \"lbnd\") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);",
-                        (dttimeval, row['interval'], row['crossover'], row['symbol'], row['open'], row['close'], row['low'], row['high'], "TRUE", row['rsi'], row['rsignal'], row['buyval'], row['sellval'], row['stoploss'])
-                    )
+    # def AddRecordtoDB(self, row):
+    #     conn_string = os.getenv("DATABASE_URL")
+    #     conn = None
+    #     try:
+    #         dttimeval = f"{row['nmonth']}-{row['nday']} {row['hour']}:{row['minute']}"
+    #         with psycopg2.connect(conn_string) as conn:
+    #             with conn.cursor() as cur:
+    #                 cur.execute(
+    #                     "INSERT INTO rsicrossover (\"triggerTime\", \"interval\", \"crossover\", \"stocksymbol\", \"Open\", \"Close\", \"Low\", \"High\", \"NotificationSent\", \"rsiVal\", \"signal\", \"midbnd\", \"ubnd\", \"lbnd\") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);",
+    #                     (dttimeval, row['interval'], row['crossover'], row['symbol'], row['open'], row['close'], row['low'], row['high'], "TRUE", row['rsi'], row['rsignal'], row['buyval'], row['sellval'], row['stoploss'])
+    #                 )
         
-        except psycopg2.Error as e:
-            print(f"Error connecting to or querying the database: {e}")
-        return
+    #     except psycopg2.Error as e:
+    #         print(f"Error connecting to or querying the database: {e}")
+    #     return
 
     def AddOpenStockOrderRecordtoDB(self, row, transstate="Open"):
         conn_string = os.getenv("DATABASE_URL")

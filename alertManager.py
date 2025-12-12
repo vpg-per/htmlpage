@@ -100,22 +100,6 @@ class AlertManager:
             print(f"Error connecting to or querying the database: {e}")
         return
 
-    # def AddRecordtoDB(self, row):
-    #     conn_string = os.getenv("DATABASE_URL")
-    #     conn = None
-    #     try:
-    #         dttimeval = f"{row['nmonth']}-{row['nday']} {row['hour']}:{row['minute']}"
-    #         with psycopg2.connect(conn_string) as conn:
-    #             with conn.cursor() as cur:
-    #                 cur.execute(
-    #                     "INSERT INTO rsicrossover (\"triggerTime\", \"interval\", \"crossover\", \"stocksymbol\", \"Open\", \"Close\", \"Low\", \"High\", \"NotificationSent\", \"rsiVal\", \"signal\", \"midbnd\", \"ubnd\", \"lbnd\") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);",
-    #                     (dttimeval, row['interval'], row['crossover'], row['symbol'], row['open'], row['close'], row['low'], row['high'], "TRUE", row['rsi'], row['rsignal'], row['buyval'], row['sellval'], row['stoploss'])
-    #                 )
-        
-    #     except psycopg2.Error as e:
-    #         print(f"Error connecting to or querying the database: {e}")
-    #     return
-
     def AddOpenStockOrderRecordtoDB(self, row, transstate="Open"):
         conn_string = os.getenv("DATABASE_URL")
         conn = None
@@ -151,6 +135,29 @@ class AlertManager:
                 # Open a cursor to perform database operations
                 with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
                     cur.execute("Select \"triggerTime\", \"symbol\", \"OrderType\", \"stockprice\", \"stoploss\", \"profittarget\", \"hour\", \"minute\", \"transstate\", \"updatedTriggerTime\" from stockorder where \"symbol\"=%s and \"transstate\"=%s; ", (symbol, transstate,))
+                    if (cur.rowcount > 0 ):
+                        rows = cur.fetchall()
+                        for row in rows:
+                            recdata = {"symbol": row['symbol'], "stockprice": row['stockprice'], "cspattern": row['OrderType'],
+                                "unixtime": row['triggerTime'], 'stoploss': row['stoploss'], 'profittarget': row['profittarget'],
+                                'hour': row['hour'], 'minute': row['minute'], 'transstate': row['transstate'], 'updatedTriggerTime': row['updatedTriggerTime'] }
+
+                cur.close()
+            conn.close()
+            return recdata
+            
+        except psycopg2.Error as e:
+            print(f"Error connecting to or querying the database: {e}")
+
+    def GetStockOrderRecordusingUnixTime(self, symbol, unixtime):
+        conn_string = os.getenv("DATABASE_URL")
+        conn = None
+        recdata = None
+        try:
+            with psycopg2.connect(conn_string) as conn:
+                # Open a cursor to perform database operations
+                with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+                    cur.execute("Select \"triggerTime\", \"symbol\", \"OrderType\", \"stockprice\", \"stoploss\", \"profittarget\", \"hour\", \"minute\", \"transstate\", \"updatedTriggerTime\" from stockorder where \"symbol\"=%s and \"triggerTime\"=%s; ", (symbol, unixtime,))
                     if (cur.rowcount > 0 ):
                         rows = cur.fetchall()
                         for row in rows:

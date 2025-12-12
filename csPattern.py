@@ -23,12 +23,12 @@ class csPattern:
     def analyze_stockcandlesLTF(self, symbol):
         todayn = datetime.now().strftime('%d')   
 
-        self.data5m = self.objMgr.GetStockdata_Byinterval(symbol, "5m", False)
+        self.data5m = self.objMgr.GetStockdata_Byinterval(symbol, "5m", indicatorList = "rsi")
         self.data5m = self.identify_candlebreakout_pattern(self.data5m)
         self.data5m['fivemaval'] = round(self.data5m['close'].rolling(window=5).mean(), 2)
-        self.data15m = self.objMgr.GetStockdata_Byinterval(symbol, "15m", False)
+        self.data15m = self.objMgr.GetStockdata_Byinterval(symbol, "15m", indicatorList = "rsi")
         self.data15m = self.identify_candlebreakout_pattern(self.data15m)
-        self.data30m = self.objMgr.GetStockdata_Byinterval(symbol, "30m", False)
+        self.data30m = self.objMgr.GetStockdata_Byinterval(symbol, "30m", indicatorList = "rsi")
         self.data30m = self.identify_candlebreakout_pattern(self.data30m)
 
         #self.ResettoSampleData()   
@@ -44,9 +44,9 @@ class csPattern:
 
     def analyze_stockcandlesHTF(self, symbol):   
 
-        self.data1h = self.objMgr.GetStockdata_Byinterval(symbol, "1h", False)
+        self.data1h = self.objMgr.GetStockdata_Byinterval(symbol, "1h", indicatorList = "rsi")
         self.data1h = self.identify_candlebreakout_pattern(self.data1h)
-        self.data4h = self.objMgr.GetStockdata_Byinterval(symbol, "4h", False)
+        self.data4h = self.objMgr.GetStockdata_Byinterval(symbol, "4h", indicatorList = "rsi")
         self.data4h = self.identify_candlebreakout_pattern(self.data4h)
         ret = self.parse_forMktStructure()
         
@@ -104,7 +104,7 @@ class csPattern:
                                             "unixtime": int(last_5mrow['unixtime']), 'stoploss': float(stoploss), 'profittarget': float(profittarget),
                                             'hour': int(last_5mrow['hour']), 'minute': int(last_5mrow['minute']), "updatedTriggerTime" : int(last_5mrow['unixtime'])}
                                         break
-                
+
         return
 
     def parse_stockdataintervalforClose(self):
@@ -202,31 +202,37 @@ class csPattern:
     #     return df
 
     def ResettoSampleData(self):
-
-        #print(self.data30m.loc[self.data30m['unixtime'].astype(int) <= 1764937800, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(20).to_string(index=False))
-        #print(self.data15m.loc[self.data15m['unixtime'].astype(int) <= 1764937800, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(20).to_string(index=False))
-        #print(self.data5m.loc[self.data5m['unixtime'].astype(int) <= 1764937800, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern', 'fivemaval']].tail(42).to_string(index=False))
+        
+        # print(self.data30m.loc[self.data30m['unixtime'].astype(int) <= 1765562400, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(20).to_string(index=False))
+        # print(self.data15m.loc[self.data15m['unixtime'].astype(int) <= 1765562400, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(20).to_string(index=False))
+        # print(self.data5m.loc[self.data5m['unixtime'].astype(int) <= 1765562400, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern', 'fivemaval']].tail(42).to_string(index=False))
         # print(self.data30m[['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(30).to_string(index=False))
         # print(self.data15m[['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(40).to_string(index=False))
         # print(self.data5m[['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern', 'fivemaval']].tail(42).to_string(index=False))
         data_30m = """
-        1764934200     12   05   06     30 61.07    57.02 686.02 685.98 686.12 685.90    SPY      30m   Bullish           na           na
-        1764936000     12   05   07     00 59.98    57.41 685.95 685.87 686.16 685.57    SPY      30m   Bearish           na           na
+        1765557000     12   12   11     30 23.14    42.15 681.27 680.60 681.29 679.17      30m    SPY   Bearish           na        EaFVG
+        1765558800     12   12   12     00 28.77    40.37 680.59 681.46 683.02 680.33      30m    SPY   Bullish     UlEngulf           na
         """
         self.data30m = self.sampledata_toDF(data_30m, False)
 
         data_15m = """
-        1764935100     12   05   06     45 63.36    61.87 686.01 685.98 686.02 685.91    SPY      15m   Bullish           na           na
-        1764936000     12   05   07     00 63.47    62.09 685.95 685.99 686.16 685.90    SPY      15m   Bullish           na           na
-        1764936900     12   05   07     15 61.05    61.95 685.96 685.87 686.08 685.57    SPY      15m   Bearish           na           na
+        1765557900     12   12   11     45 23.52    33.25 680.70 680.60 680.75 679.66    SPY      15m   Bearish           na           na
+        1765558800     12   12   12     00 32.55    33.16 680.59 681.88 682.12 680.33    SPY      15m   Bullish     UlEngulf           na
+        1765559700     12   12   12     15 31.25    32.90 681.88 681.46 683.02 681.38    SPY      15m   Bullish           na        UlFVG
         """
         self.data15m = self.sampledata_toDF(data_15m, False)
 
         data_5m = """
-        1764936600     12   05   07     10 57.70    60.67 686.05 685.99 686.08 685.96    SPY       5m   Bearish           na           na     686.02
-        1764936900     12   05   07     15 52.68    59.60 685.96 685.89 686.08 685.86    SPY       5m   Bearish           na           na     686.01
-        1764937200     12   05   07     20 47.36    57.97 685.89 685.77 685.91 685.57    SPY       5m   Bearish           na        EaFVG     685.96
-        1764937500     12   05   07     25 51.74    57.14 685.71 685.87 685.90 685.64    SPY       5m   Bearish           na           na     685.91
+        1765557300     12   12   11     35 23.77    25.72 680.32 679.65 680.51 679.17    SPY       5m   Bearish           na           na     680.49
+        1765557600     12   12   11     40 32.95    26.69 679.66 680.70 680.71 679.24    SPY       5m   Bullish           na           na     680.46
+        1765557900     12   12   11     45 31.51    27.33 680.70 680.33 680.75 679.88    SPY       5m   Bullish           na           na     680.45
+        1765558200     12   12   11     50 30.42    27.74 680.33 680.05 680.33 679.76    SPY       5m   Bullish           na           na     680.21
+        1765558500     12   12   11     55 35.14    28.73 680.02 680.60 680.64 679.66    SPY       5m   Bullish     UlEngulf           na     680.27
+        1765558800     12   12   12     00 39.86    30.21 680.59 681.19 681.45 680.33    SPY       5m   Bullish           na           na     680.57
+        1765559100     12   12   12     05 42.67    31.87 681.19 681.56 682.12 681.13    SPY       5m   Bullish           na        UlFVG     680.75
+        1765559400     12   12   12     10 45.06    33.63 681.54 681.88 682.03 681.51    SPY       5m   Bullish           na        UlFVG     681.06
+        1765559700     12   12   12     15 51.83    36.06 681.88 682.88 682.90 681.88    SPY       5m   Bullish           na           na     681.62
+        1765560000     12   12   12     20 50.62    38.00 682.88 682.70 683.02 682.41    SPY       5m   Bearish           na        UlFVG     682.04
         """
         self.data5m = self.sampledata_toDF(data_5m, True)
         return

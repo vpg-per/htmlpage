@@ -17,26 +17,24 @@ class ServiceManager:
     def analyze_stockdata(self, symbol):
         todayn = datetime.now().strftime('%d')
         df_merged = { }
-        self.data5m = self.GetStockdata_Byinterval(symbol, "5m")
+        self.data5m = self.GetStockdata_Byinterval(symbol, "5m", indicatorList = "macd")
         df_merged = self.data5m[(self.data5m['nday'] == todayn) ].copy().tail(20)
 
-        self.data15m = self.GetStockdata_Byinterval(symbol, "15m")
-        self.data30m = self.GetStockdata_Byinterval(symbol, "30m")
-        self.data1h = self.GetStockdata_Byinterval(symbol, "1h")
+        self.data15m = self.GetStockdata_Byinterval(symbol, "15m", indicatorList = "macd")
+        self.data30m = self.GetStockdata_Byinterval(symbol, "30m", indicatorList = "macd")
+        self.data1h = self.GetStockdata_Byinterval(symbol, "1h", indicatorList = "macd")
 
-        #df_signal = self.calculate_bollinger_bands(self.data15m, period=20, std_dev=2)
         self.data15m = self.calculate_Buy_Sell_Values(self.data15m, self.data30m, 65)
         df_temp = self.data15m[(self.data15m['nday'] == todayn) ].copy().tail(12)
         df_merged=  pd.concat([df_merged, df_temp], ignore_index=True)
 
-        #df_signal = self.calculate_bollinger_bands(self.data30m, period=20, std_dev=2)
         self.data30m = self.calculate_Buy_Sell_Values(self.data30m, self.data1h, 125)
         df_temp = self.data30m[(self.data30m['nday'] == todayn) ].copy().tail(8)   
         df_merged=  pd.concat([df_merged, df_temp], ignore_index=True)
 
         df_temp = self.data1h[(self.data1h['nday'] == todayn) ].copy().tail(4)
         df_merged=  pd.concat([df_merged, df_temp], ignore_index=True)
-        self.data4h = self.GetStockdata_Byinterval(symbol, "4h").tail(3)
+        self.data4h = self.GetStockdata_Byinterval(symbol, "4h", indicatorList = "macd").tail(3)
         yesterdayn = (datetime.now() - timedelta(days=1)).strftime('%d')        
         df_temp = self.data4h[(self.data4h['nday'] == todayn) | (self.data4h['nday'] == yesterdayn)].copy()
         if (len(df_temp) == 0):
@@ -45,7 +43,7 @@ class ServiceManager:
         
         return df_merged
 
-    def GetStockdata_Byinterval(self, symbol, interval="1d", ballIndicators = True):
+    def GetStockdata_Byinterval(self, symbol, interval="1d", indicatorList = "macd"):
         df_signal = { }
                 
         stPeriod = int((datetime.now()- timedelta(days=4)).timestamp()) 
@@ -103,8 +101,13 @@ class ServiceManager:
             df['hour'] = np.where(df['hour']=="18", "17", df['hour'])
 
         df_signal = df.copy()
-        df_signal = self.calculate_macd(df_signal)
-        df_sel_cols = df_signal.loc[:, ['unixtime', 'nmonth', 'nday', 'hour', 'minute', 'macd', 'msignal', 'histogram','open','close','high','low']]
+        if ("macd" in indicatorList):
+            df_signal = self.identify_candlestick_patterns(df_signal)
+            df_signal = self.calculate_macd(df_signal)
+            df_sel_cols = df_signal.loc[:, ['unixtime', 'nmonth', 'nday', 'hour', 'minute', 'macd', 'msignal', 'histogram','open','close','high','low']]
+        if ("rsi" in indicatorList):
+            df_signal = self.calculate_rsi(df_signal)
+            df_sel_cols = df_signal.loc[:, ['unixtime', 'nmonth', 'nday', 'hour', 'minute', 'rsi', 'rsignal', 'open','close','high','low']]
         df_sel_cols['interval'] = interval
         df_sel_cols['symbol'] = symbol.replace("%3DF","")
 
@@ -173,6 +176,130 @@ class ServiceManager:
             print(f"Error parsing data: {e}")
             return None
 
+    def calculate_macd(self, df, fast=12, slow=26, signal=9):
+        """
+        Calculate MACD line and Signal line
+        
+        Parameters:
+        - df: DataFrame with 'Close' prices
+        - fast: Fast EMA period (default 12)
+        - slow: Slow EMA period (default 26)
+        - signal: Signal line EMA period (default 9)
+        
+        Returns:
+        - DataFrame with MACD, Signal, and Histogram columns
+        """
+        # Calculate EMAs
+        ema_fast = df['close'].ewm(span=fast, adjust=False).mean()
+        ema_slow = df['close'].ewm(span=slow, adjust=False).mean()
+        macd_line = ema_fast - ema_slow
+        signal_line = macd_line.ewm(span=signal, adjust=False).mean()
+                
+        # Add to dataframe
+        df['macd'] = round(macd_line,2) 
+        df['msignal'] = round(signal_line,2) 
+        df['histogram'] = round(macd_line - signal_line,2) 
+        
+        return df
+        
+    def calculate_Buy_Sell_Values(self, dfcur, dfhtf, lookupmins):
+        dfcur['buyval'], dfcur['sellval'], dfcur['stoploss']= 0, 0, 0
+        dfcur['crossover'] = "Neutral"
+        lookupts = int((datetime.now()- timedelta(minutes=lookupmins)).timestamp())
+        dfcur = dfcur[ (dfcur['unixtime'].astype(int) >= int(lookupts)) ].copy()
+        if not dfcur.empty:
+            dfhtf = dfhtf[ (dfhtf['unixtime'].astype(int) >= int(lookupts)) ]
+            dfcur['ninemaval'] = round(dfcur['close'].rolling(window=9).mean(), 2)
+            dfcur['histogram_prev'] = dfcur['histogram'].shift(1)
+
+            last_dfrec = dfcur.tail(1).copy()
+            if not last_dfrec.empty and not dfhtf.empty:
+                last_dfhtf_rec = dfhtf.tail(1).copy()
+                change_values = False
+                crossoverval = "Neutral"
+                if ((last_dfrec['histogram'] >= 0) & (last_dfrec['histogram_prev'] < 0)).bool():
+                    change_values = True
+                    crossoverval = "Bullish"
+                elif ((last_dfrec['histogram'] <= 0) & (last_dfrec['histogram_prev'] > 0)).bool():
+                    change_values = True
+                    crossoverval = "Bearish"
+
+                if (change_values):
+                    last_row_index = last_dfrec.index[0]
+                    dfcur.loc[last_row_index, 'crossover'] = crossoverval
+                    dfcur.loc[last_row_index, 'buyval'] = last_dfrec['ninemaval'].iloc[0]
+                    dfcur.loc[last_row_index, 'sellval'] = last_dfhtf_rec['close'].iloc[0]
+                    dfcur.loc[last_row_index, 'stoploss'] = last_dfhtf_rec['open'].iloc[0]
+            
+            dfcur.drop(columns=['histogram_prev', 'ninemaval'], inplace=True)
+            
+        return dfcur
+
+    def identify_candlestick_patterns(self, data):
+        """Identifies common candlestick patterns in the data."""
+        
+        if len(data) < 3:
+            return data
+        data['pattern'], data['pattern2c'] , data['pattern3c'] = 'NA', 'NA', 'NA'
+        todayn = datetime.now().strftime('%d')
+        for i in range(1, len(data)):
+            #if ( data['nday'].iloc[i] == todayn ):
+                o, h, l, c = data['open'].iloc[i], data['high'].iloc[i], data['low'].iloc[i], data['close'].iloc[i]
+                o_prev, h_prev, l_prev, c_prev = data['open'].iloc[i-1], data['high'].iloc[i-1], data['low'].iloc[i-1], data['close'].iloc[i-1]                
+                
+                body = abs(c - o)
+                price_range = h - l
+            
+                # --- Single-bar patterns ---            
+                # Doji (small body)
+                if price_range > 0 and body / price_range < 0.1:
+                    data.loc[data.index[i], 'pattern'] = 'Dj'
+                # Marubozu (strong momentum)
+                elif price_range > 0 and body / price_range > 0.95:
+                    if c > o:
+                        data.loc[data.index[i], 'pattern'] = 'UM'
+                    else:
+                        data.loc[data.index[i], 'pattern'] = 'EM'
+
+                # --- Two-bar patterns ---
+                data['pattern2c'].iloc[i] = 'NA'
+                # Bullish Engulfing
+                if c > o and l > l_prev and c > o_prev and body / price_range > 0.95:
+                    data.loc[data.index[i], 'pattern2c'] = 'UE'
+                # Bearish Engulfing
+                elif c < o and h < h_prev and c < o_prev and body / price_range > 0.95:
+                    data.loc[data.index[i], 'pattern2c'] = 'EE'
+
+                # --- Three-bar patterns ---
+                o_prev_2, c_prev_2 = data['open'].iloc[i-2], data['close'].iloc[i-2]
+                o_prev_3, c_prev_3 = data['open'].iloc[i-3], data['close'].iloc[i-3]
+
+                # Bullish Three-Line Strike
+                is_three_white_soldiers = (c_prev_3 < o_prev_3 and c_prev_2 > o_prev_2 and c_prev > o_prev)
+                is_higher_highs = (c_prev_2 > c_prev_3 and c_prev > c_prev_2)
+                is_strike_down = (c < o and o > c_prev and c < o_prev_3)
+                if is_three_white_soldiers and is_higher_highs and is_strike_down:
+                    data.loc[data.index[i], 'pattern3c'] = 'Ul3LS'
+                
+                # Bearish Three-Line Strike
+                is_three_black_crows = (c_prev_3 > o_prev_3 and c_prev_2 < o_prev_2 and c_prev < o_prev)
+                is_lower_lows = (c_prev_2 < c_prev_3 and c_prev < c_prev_2)
+                is_strike_up = (c > o and o < c_prev and c > o_prev_3)
+                if is_three_black_crows and is_lower_lows and is_strike_up:
+                    data.loc[data.index[i], 'pattern3c'] = 'Ea3LS'
+        
+        return data
+
+    def calculate_bollinger_bands(self, df, period=20, std_dev=2):
+        
+        # Calculate Middle Band (SMA)
+        df['midbnd'] = df['close'].rolling(window=period).mean()
+        df['stddev'] = df['close'].rolling(window=period).std()
+        df['ubnd'] = round(df['midbnd'] + (std_dev * df['stddev']), 2)
+        df['lbnd'] = round(df['midbnd'] - (std_dev * df['stddev']), 2)
+        df['midbnd'] = round(df['midbnd'], 2)
+        return df
+
     def calculate_rsi(self, df, period=14):
         """
         Calculate RSI (Relative Strength Index)
@@ -209,112 +336,3 @@ class ServiceManager:
         df.drop(['price_change', 'gain', 'loss', 'avg_gain', 'avg_loss', 'rs', 'rsi_prev', 'rsignal_prev', 'bullish_crossover', 'bearish_crossover'], axis=1, inplace=True)
         
         return df
-
-    def calculate_macd(self, df, fast=12, slow=26, signal=9):
-        """
-        Calculate MACD line and Signal line
-        
-        Parameters:
-        - df: DataFrame with 'Close' prices
-        - fast: Fast EMA period (default 12)
-        - slow: Slow EMA period (default 26)
-        - signal: Signal line EMA period (default 9)
-        
-        Returns:
-        - DataFrame with MACD, Signal, and Histogram columns
-        """
-        # Calculate EMAs
-        ema_fast = df['close'].ewm(span=fast, adjust=False).mean()
-        ema_slow = df['close'].ewm(span=slow, adjust=False).mean()
-        macd_line = ema_fast - ema_slow
-        signal_line = macd_line.ewm(span=signal, adjust=False).mean()
-                
-        # Add to dataframe
-        df['macd'] = round(macd_line,2) 
-        df['msignal'] = round(signal_line,2) 
-        df['histogram'] = round(macd_line - signal_line,2) 
-        
-        return df
-        
-    def calculate_Buy_Sell_Values(self, dfcur, dfhtf, lookupmins):
-        dfcur['buyval'], dfcur['sellval'], dfcur['stoploss']= 0, 0, 0
-        dfcur['crossover'] = "Neutral"
-        lookupts = int((datetime.now()- timedelta(minutes=lookupmins)).timestamp())
-#        dfcur = dfcur[ (dfcur['unixtime'].astype(int) >= int(lookupts)) ].copy()
-        if not dfcur.empty:
-            dfhtf = dfhtf[ (dfhtf['unixtime'].astype(int) >= int(lookupts)) ]
-            dfcur['ninemaval'] = round(dfcur['close'].rolling(window=9).mean(), 2)
-            dfcur['histogram_prev'] = dfcur['histogram'].shift(1)
-
-            last_dfrec = dfcur.tail(1).copy()
-            if not last_dfrec.empty and not dfhtf.empty:
-                last_dfhtf_rec = dfhtf.tail(1).copy()
-                change_values = False
-                crossoverval = "Neutral"
-                if ((last_dfrec['histogram'] >= 0) & (last_dfrec['histogram_prev'] < 0)).bool():
-                    change_values = True
-                    crossoverval = "Bullish"
-                elif ((last_dfrec['histogram'] <= 0) & (last_dfrec['histogram_prev'] > 0)).bool():
-                    change_values = True
-                    crossoverval = "Bearish"
-
-                if (change_values):
-                    last_row_index = last_dfrec.index[0]
-                    dfcur.loc[last_row_index, 'crossover'] = crossoverval
-                    dfcur.loc[last_row_index, 'buyval'] = last_dfrec['ninemaval'].iloc[0]
-                    dfcur.loc[last_row_index, 'sellval'] = last_dfhtf_rec['close'].iloc[0]
-                    dfcur.loc[last_row_index, 'stoploss'] = last_dfhtf_rec['open'].iloc[0]
-            
-            dfcur.drop(columns=['histogram_prev', 'ninemaval'], inplace=True)
-            
-        return dfcur
-
-    def calculate_bollinger_bands(self, df, period=20, std_dev=2):
-        
-        # Calculate Middle Band (SMA)
-        df['midbnd'] = df['close'].rolling(window=period).mean()
-        df['stddev'] = df['close'].rolling(window=period).std()
-        df['ubnd'] = round(df['midbnd'] + (std_dev * df['stddev']), 2)
-        df['lbnd'] = round(df['midbnd'] - (std_dev * df['stddev']), 2)
-        df['midbnd'] = round(df['midbnd'], 2)
-        return df
-
-    def identify_candlestick_patterns(self, data):
-        """Identifies common candlestick patterns in the data."""
-        
-        if len(data) < 3:
-            return data
-        
-        todayn = datetime.now().strftime('%d')
-        for i in range(1, len(data)):
-            if ( data['nday'].iloc[i] == todayn ):
-                o, h, l, c = data['open'].iloc[i], data['high'].iloc[i], data['low'].iloc[i], data['close'].iloc[i]
-                o_prev, h_prev, l_prev, c_prev = data['open'].iloc[i-1], data['high'].iloc[i-1], data['low'].iloc[i-1], data['close'].iloc[i-1]
-                o_prev_2, c_prev_2 = data['open'].iloc[i-2], data['close'].iloc[i-3]
-                
-                body = abs(c - o)
-                price_range = h - l
-            
-                # --- Single-bar patterns ---            
-                # Doji (small body)
-                if price_range > 0 and body / price_range < 0.1:
-                    data['pattern'].iloc[i] = 'Dj'
-                # Marubozu (strong momentum)
-                if price_range > 0 and body / price_range > 0.95:
-                    if c > o:
-                        data['pattern'].iloc[i] = 'UM'
-                    else:
-                        data['pattern'].iloc[i] = 'EM'
-
-                # --- Two-bar patterns ---
-                data['pattern2c'].iloc[i] = 'NA'
-                # Bullish Engulfing
-                if c > o and l > l_prev and c > o_prev and body / price_range > 0.95:
-                    data['pattern2c'].iloc[i] = 'UE'
-                # Bearish Engulfing
-                if c < o and h < h_prev and c < o_prev and body / price_range > 0.95:
-                    data['pattern2c'].iloc[i] = 'EE'
-
-                # --- Three-bar patterns ---
-            
-        return data

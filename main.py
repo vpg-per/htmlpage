@@ -46,7 +46,7 @@ def CandleStickPattern():
         cs_pattern.analyze_stockcandlesLTF(symbol)
 
         if (cs_pattern.openorderon5m is not None and cs_pattern.closeorderon5m is None):
-            recordinDBTable = altMgr.GetStockOrderRecordfromDB(symbol, 'OpenClose')
+            recordinDBTable = altMgr.GetStockOrderRecordusingUnixTime(symbol, cs_pattern.openorderon5m['unixtime'])
             if (recordinDBTable is None):
                 altMgr.AddOpenStockOrderRecordtoDB(cs_pattern.openorderon5m)
                 if (cs_pattern.openorderon5m['updatedTriggerTime'] == cs_pattern.openorderon5m['unixtime']):
@@ -170,7 +170,7 @@ def ReturnPattern():
     g_message = []
     altMgr.set_message(g_message)
     symbol = request.args.get('symbol', default='', type=str).upper()
-    stocksymbols = ['GLD','QQQ', 'IWM']
+    stocksymbols = ['GLD', 'QQQ','IWM']
     if (symbol != ""):
         stocksymbols = [symbol]
     #stocksymbols = ['NQ%3DF', 'RTY%3DF', 'GC%3DF']

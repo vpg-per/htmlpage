@@ -92,9 +92,15 @@ class AlertManager:
             nowdt = datetime.now().date()- timedelta(days=1)
             dttimeval = f"%{nowdt.strftime('%m')}-{nowdt.strftime('%d')}%"
             delete_sql = "DELETE FROM rsicrossover WHERE \"triggerTime\" like %s;"
+            
+            lookupts = int((datetime.now()- timedelta(hours=8)).timestamp())
+            delete_sql1 = f"DELETE FROM stockorder WHERE CAST(triggerTime AS INTEGER) < {lookupts};"
             with psycopg2.connect(conn_string) as conn:
                 with conn.cursor() as cur:
                     cur.execute(delete_sql, (dttimeval,))
+                
+                with conn.cursor() as cur1:
+                    cur1.execute(delete_sql1)
         
         except psycopg2.Error as e:
             print(f"Error connecting to or querying the database: {e}")
@@ -149,7 +155,7 @@ class AlertManager:
         except psycopg2.Error as e:
             print(f"Error connecting to or querying the database: {e}")
 
-    def GetStockOrderRecordusingUnixTime(self, symbol, unixtime):
+    def GetStockOrderRecordusingUnixTime(self, symbol, unixtime, inphour, inpminute):
         conn_string = os.getenv("DATABASE_URL")
         conn = None
         recdata = None
@@ -157,7 +163,7 @@ class AlertManager:
             with psycopg2.connect(conn_string) as conn:
                 # Open a cursor to perform database operations
                 with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
-                    cur.execute("Select \"triggerTime\", \"symbol\", \"OrderType\", \"stockprice\", \"stoploss\", \"profittarget\", \"hour\", \"minute\", \"transstate\", \"updatedTriggerTime\" from stockorder where \"symbol\"=%s and \"triggerTime\"=%s; ", (symbol, unixtime,))
+                    cur.execute("Select \"triggerTime\", \"symbol\", \"OrderType\", \"stockprice\", \"stoploss\", \"profittarget\", \"hour\", \"minute\", \"transstate\", \"updatedTriggerTime\" from stockorder where \"symbol\"=%s and \"hour\"=%s and \"minute\"=%s ; ", (symbol, inphour, inpminute,))
                     if (cur.rowcount > 0 ):
                         rows = cur.fetchall()
                         for row in rows:
@@ -167,6 +173,7 @@ class AlertManager:
 
                 cur.close()
             conn.close()
+            print(f"recdata: {recdata}")
             return recdata
             
         except psycopg2.Error as e:

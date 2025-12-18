@@ -46,7 +46,7 @@ def CandleStickPattern():
         cs_pattern.analyze_stockcandlesLTF(symbol)
 
         if (cs_pattern.openorderon5m is not None and cs_pattern.closeorderon5m is None):
-            recordinDBTable = altMgr.GetStockOrderRecordusingUnixTime(symbol, cs_pattern.openorderon5m['unixtime'])
+            recordinDBTable = altMgr.GetStockOrderRecordusingUnixTime(symbol, str(cs_pattern.openorderon5m['unixtime']), str(cs_pattern.openorderon5m['hour']), str(cs_pattern.openorderon5m['minute']))
             if (recordinDBTable is None):
                 altMgr.AddOpenStockOrderRecordtoDB(cs_pattern.openorderon5m)
                 if (cs_pattern.openorderon5m['updatedTriggerTime'] == cs_pattern.openorderon5m['unixtime']):

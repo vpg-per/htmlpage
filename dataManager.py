@@ -217,10 +217,10 @@ class ServiceManager:
                 last_dfhtf_rec = dfhtf.tail(1).copy()
                 change_values = False
                 crossoverval = "Neutral"
-                if ((last_dfrec['histogram'] >= 0) & (last_dfrec['histogram_prev'] < 0)).bool():
+                if ((last_dfrec['histogram'].iloc[-1] >= 0) & (last_dfrec['histogram_prev'].iloc[-1] <= 0) & (last_dfrec['histogram_prev'].iloc[-1] != last_dfrec['histogram'].iloc[-1]) ):
                     change_values = True
                     crossoverval = "Bullish"
-                elif ((last_dfrec['histogram'] <= 0) & (last_dfrec['histogram_prev'] > 0)).bool():
+                elif ((last_dfrec['histogram'].iloc[-1] <= 0) & (last_dfrec['histogram_prev'].iloc[-1] >= 0) & (last_dfrec['histogram_prev'].iloc[-1] != last_dfrec['histogram'].iloc[-1]) ):
                     change_values = True
                     crossoverval = "Bearish"
 

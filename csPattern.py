@@ -33,7 +33,8 @@ class csPattern:
 
         # self.ResettoSampleData()  
         loadedFromDB = True
-        if (self.openorderon5m is None):
+        utc_now = datetime.now(timezone.utc)
+        if (self.openorderon5m is None and utc_now.hour <= 20):
             self.parse_stockdataintervalforOpen()
             loadedFromDB = False
 

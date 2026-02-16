@@ -184,8 +184,17 @@ class csPattern:
         cond_hist_negative_and_falling = (h < 0 and h < h1 < h2)
         cond_macd_negative_hist_falling = (m < 0 and s < 0 and h < h1 < h2)
         cond_hist_falling_while_macd_pos = (m > 0 and s > 0 and h < h1 and h1 > h2)
-
-        if cond_macd_above or cond_macd_above_with_pos_hist or cond_hist_positive_and_rising or cond_macd_positive_hist_rising:
+        # Histogram positive but decreasing (dark green -> light green)
+        cond_hist_positive_and_falling = (m > 0 and h > 0 and h < h1 and h1 > h2)
+        # Histogram negative but increasing (dark red -> light red)
+        cond_hist_negative_and_rising = (m < 0 and h < 0 and h > h1 and h1 > h2)
+        # Prioritize positive->decreasing histogram as a potential early bearish flip
+        if cond_hist_positive_and_falling:
+            retPattern = "Bearish"
+        # Prioritize negative->increasing histogram as a potential early bullish flip
+        elif cond_hist_negative_and_rising:
+            retPattern = "Bullish"
+        elif cond_macd_above or cond_macd_above_with_pos_hist or cond_hist_positive_and_rising or cond_macd_positive_hist_rising:
             retPattern = "Bullish"
         elif (cond_macd_below or cond_macd_below_with_neg_hist or cond_hist_negative_and_falling or cond_macd_negative_hist_falling or cond_hist_falling_while_macd_pos):
             retPattern = "Bearish"

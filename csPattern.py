@@ -23,14 +23,14 @@ class csPattern:
     def analyze_stockcandlesLTF(self, symbol):
         todayn = datetime.now().strftime('%d')   
 
-        self.data5m = self.objMgr.GetStockdata_Byinterval(symbol, "5m", indicatorList = "rsi")
+        self.data5m = self.objMgr.GetStockdata_Byinterval(symbol, "5m", indicatorList = "rsi,macd")
         self.data5m = self.identify_candlebreakout_pattern(self.data5m)
-        self.data5m['fivemaval'] = round(self.data5m['close'].rolling(window=5).mean(), 2)
-        self.data15m = self.objMgr.GetStockdata_Byinterval(symbol, "15m", indicatorList = "rsi")
+        self.data5m['ema5'] = round(self.data5m['close'].ewm(span=5, adjust=False).mean(), 2)
+        self.data15m = self.objMgr.GetStockdata_Byinterval(symbol, "15m", indicatorList = "rsi,macd")
         self.data15m = self.identify_candlebreakout_pattern(self.data15m)
-        self.data30m = self.objMgr.GetStockdata_Byinterval(symbol, "30m", indicatorList = "rsi")
+        self.data30m = self.objMgr.GetStockdata_Byinterval(symbol, "30m", indicatorList = "rsi,macd")
         self.data30m = self.identify_candlebreakout_pattern(self.data30m)
-
+        
         # self.ResettoSampleData()  
         loadedFromDB = True
         utc_now = datetime.now(timezone.utc)
@@ -66,78 +66,46 @@ class csPattern:
         return mspattern
 
     def parse_stockdataintervalforOpen(self):
-        lookupts = int((datetime.now()- timedelta(minutes=48)).timestamp())
-        df = self.data30m.copy()
-        sub_df15m, sub_df5m, last_but_one_15mrow, last_15mrow = None, None, None, None
-        found_crossover = False
-                
-        if df is not None:
-            last_but_one_30mrow = df.iloc[-2].copy()
-            last_30mrow = df.iloc[-1].copy()
-            #if ( last_30mrow['unixtime'] > lookupts and last_30mrow['cspattern'] != last_but_one_30mrow['cspattern'] and last_30mrow['cspattern'] != "Neutral" ):
-            if ( last_30mrow['cspattern'] != last_but_one_30mrow['cspattern'] and last_30mrow['cspattern'] != "Neutral" ):
-                sub_df15m = self.data15m[ self.data15m['unixtime'].astype(int) >= int(last_but_one_30mrow['unixtime'] ) ]
-                if ( len(sub_df15m) > 1):
-                    for i in range(1, len(sub_df15m)):
-                        if (sub_df15m.iloc[i]['cspattern'] != sub_df15m.iloc[i-1]['cspattern'] and sub_df15m.iloc[i]['cspattern'] != "Neutral" and 
-                            sub_df15m.iloc[i]['cspattern'] == last_30mrow['cspattern']):
-                            last_but_one_15mrow = sub_df15m.iloc[i-1].copy()
-                            last_15mrow = sub_df15m.iloc[i].copy()
-                            found_crossover = True
-                    if (found_crossover == True and last_15mrow is not None and last_but_one_15mrow is not None):
-                        sub_df5m = self.data5m[ (self.data5m['unixtime'].astype(int) >= int(last_15mrow['unixtime'])) ]
-                        if ( len(sub_df5m) > 1):
-                            for j in range(len(sub_df5m)):
-                                last_5mrow = sub_df5m.iloc[j].copy()
-                                if (last_5mrow['cspattern'] == last_15mrow['cspattern']):
-                                    stoploss = last_15mrow['low']
-                                    profittarget = last_15mrow['close']
-                                    if ( last_15mrow['cspattern'] == "Bearish"):
-                                        stoploss = last_15mrow['high']
-                                    
-                                    isAlertValid = False
-                                    if (last_5mrow['cspattern'] == "Bullish"):
-                                        isAlertValid = float(last_5mrow['fivemaval']) > float(stoploss) and float(last_5mrow['fivemaval']) < float(profittarget)
-                                    elif (last_5mrow['cspattern'] == "Bearish"):
-                                        isAlertValid = float(last_5mrow['fivemaval']) < float(stoploss) and float(last_5mrow['fivemaval']) > float(profittarget)
-                                    if (isAlertValid):
-                                        self.openorderon5m = {"symbol": last_5mrow['symbol'], "stockprice": float(last_5mrow['fivemaval']), "cspattern": last_5mrow['cspattern'],
-                                            "unixtime": int(last_5mrow['unixtime']), 'stoploss': float(stoploss), 'profittarget': float(profittarget),
-                                            'hour': int(last_5mrow['hour']), 'minute': int(last_5mrow['minute']), "updatedTriggerTime" : int(last_5mrow['unixtime'])}
-                                        break
+        self.Structure_15m()
+        self.Structure_5m()
+        last_5mrow = self.data5m.iloc[-1].copy()
+        last_15mrow = self.data15m.iloc[-1].copy()
+
+        stoploss, profittarget = 0, 0
+        if (last_5mrow['macdpattern'] == "Bullish"):
+            stoploss = last_15mrow['low']
+            profittarget = last_15mrow['close']
+        elif ( last_5mrow['macdpattern'] == "Bearish"):
+            profittarget = last_15mrow['low']
+            stoploss = last_15mrow['high']
+        if (stoploss > 0 or profittarget > 0):
+            self.openorderon5m = {"symbol": last_5mrow['symbol'], "stockprice": float(last_5mrow['ema5']), "cspattern": last_5mrow['macdpattern'], "cstwopattern": last_5mrow['cstwopattern'], "csfvgpattern": last_5mrow['csfvgpattern'],
+                "unixtime": int(last_5mrow['unixtime']), 'stoploss': float(stoploss), 'profittarget': float(profittarget),
+                'hour': int(last_5mrow['hour']), 'minute': int(last_5mrow['minute']), "updatedTriggerTime" : int(last_5mrow['unixtime'])}
 
         return
 
     def parse_stockdataintervalforClose(self):
-        
-        sub_df15m = self.data15m[ (self.data15m['unixtime'].astype(int) >= int(self.openorderon5m['updatedTriggerTime'])) ].copy()
-        if ( len(sub_df15m) <= 1):
-            sub_df15m = self.data15m.tail(2).copy()
-        if (len(sub_df15m) > 1):
-            last_but_one_15mrow = sub_df15m.iloc[-2].copy()
-            last_15mrow = sub_df15m.iloc[-1].copy()
-            dfdata_5m = self.data5m[ (self.data5m['unixtime'].astype(int) > int(self.openorderon5m['updatedTriggerTime'])) ]
-            if (len(dfdata_5m) <= 1):
-                dfdata_5m = self.data5m.tail(2).copy()
-        
-            if (len(dfdata_5m) > 1):
-                last_but_one_5mrow = dfdata_5m.iloc[-2].copy()
-                last_5mrow = dfdata_5m.iloc[-1].copy()
-                if (last_5mrow['cspattern'] == last_but_one_5mrow['cspattern'] and last_5mrow['cspattern'] == self.openorderon5m['cspattern']):
-                    self.openorderon5m['hour'] = int(last_5mrow['hour'])
-                    self.openorderon5m['minute'] = int(last_5mrow['minute'])
-                    self.openorderon5m['updatedTriggerTime'] = int(last_5mrow['unixtime'])
-                    self.openorderon5m['cstwopattern'] = last_5mrow['cstwopattern']
-                    self.openorderon5m['csfvgpattern'] = last_5mrow['csfvgpattern']
-                    if (self.openorderon5m['cspattern'] == "Bullish"):
-                        self.openorderon5m['profittarget'] = float(last_15mrow['high'])
-                        self.openorderon5m['stoploss'] = float(last_15mrow['low'])
-                    elif (self.openorderon5m['cspattern'] == "Bearish"):
-                        self.openorderon5m['profittarget'] = float(last_15mrow['low'])
-                        self.openorderon5m['stoploss'] = float(last_15mrow['high'])
-                else:
-                    self.closeorderon5m = {"symbol": last_5mrow['symbol'], "stockprice": float(last_5mrow['open']), "cspattern": last_5mrow['cspattern'],
-                        "unixtime": int(last_5mrow['unixtime']), 'stoploss': "0", 'profittarget': "0", 'hour': int(last_5mrow['hour']), 'minute': int(last_5mrow['minute'])}
+        self.Structure_15m()
+        self.Structure_5m()
+        last_5mrow = self.data5m.iloc[-1].copy()
+        last_15mrow = self.data15m.iloc[-1].copy()
+
+        if (self.openorderon5m['cspattern'] == last_5mrow['macdpattern'] or last_5mrow['macdpattern'] == "Neutral"):
+            self.openorderon5m['hour'] = int(last_5mrow['hour'])
+            self.openorderon5m['minute'] = int(last_5mrow['minute'])
+            self.openorderon5m['updatedTriggerTime'] = int(last_5mrow['unixtime'])
+            self.openorderon5m['cstwopattern'] = last_5mrow['cstwopattern']
+            self.openorderon5m['csfvgpattern'] = last_5mrow['csfvgpattern']
+            if (self.openorderon5m['cspattern'] == "Bullish"):
+                self.openorderon5m['profittarget'] = float(last_15mrow['high'])
+                self.openorderon5m['stoploss'] = float(last_15mrow['low'])
+            elif (self.openorderon5m['cspattern'] == "Bearish"):
+                self.openorderon5m['profittarget'] = float(last_15mrow['low'])
+                self.openorderon5m['stoploss'] = float(last_15mrow['high'])
+        else:
+             self.closeorderon5m = {"symbol": last_5mrow['symbol'], "stockprice": float(last_5mrow['open']), "cspattern": last_5mrow['macdpattern'],
+                "unixtime": int(last_5mrow['unixtime']), 'stoploss': "0", 'profittarget': "0", 'hour': int(last_5mrow['hour']), 'minute': int(last_5mrow['minute'])}
                     
         return
     
@@ -176,40 +144,62 @@ class csPattern:
         
         return df
 
-    # def invoke_downloadcall(self, symbol, interval="15m", rsiFlag=True):
-                
-    #     stPeriod = int((datetime.now()- timedelta(days=2)).timestamp()) 
-    #     endPeriod = datetime.now()
-    #     minutes_to_subtract = endPeriod.minute % 5
-    #     endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0)
-    #     df = self.objMgr.download_stock_data(symbol, stPeriod, endPeriod.timestamp(), interval)
-
-    #     if (interval=="5m"):
-    #         df = df[(df['unixtime'] <= endPeriod.timestamp()) & (df['minute'].isin(["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"])) ]
-    #     elif (interval=="15m"):
-    #         minutes_to_subtract = endPeriod.minute % 15
-    #         endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0).timestamp() - 1
-    #         df = df[(df['unixtime'] <= endPeriod) & (df['minute'].isin(["00", "15", "30", "45"])) ]
-    #     elif (interval=="30m"):
-    #         minutes_to_subtract = endPeriod.minute % 30
-    #         endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0).timestamp() - 1
-    #         df = df[(df['unixtime'] <= endPeriod) & (df['minute'].isin(["00", "30"])) ]
-
-    #     df['symbol']=symbol
-    #     df['interval']=interval
-    #     df = self.objMgr.calculate_rsi(df, period=14)
-    #     df = df.loc[:, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval']]
+    def Structure_30m(self):
+        mapattern = self.Structure_usingInputRows(self.data30m.iloc[-1], self.data30m.iloc[-2], self.data30m.iloc[-3])
+        self.data30m['macdpattern'] = 'na'
+        self.data30m.at[self.data30m.index[-1], 'macdpattern'] = mapattern
+        return 
         
-    #     return df
+    def Structure_15m(self):
+        mapattern = self.Structure_usingInputRows(self.data15m.iloc[-1], self.data15m.iloc[-2], self.data15m.iloc[-3])
+        self.data15m['macdpattern'] = 'na'
+        self.data15m.at[self.data15m.index[-1], 'macdpattern'] = mapattern
+        return
+        
+    def Structure_5m(self):
+        mapattern = self.Structure_usingInputRows(self.data5m.iloc[-1], self.data5m.iloc[-2], self.data5m.iloc[-3])
+        self.data5m['macdpattern'] = 'na'
+        self.data5m.at[self.data5m.index[-1], 'macdpattern'] = mapattern
+        return
+    
+    def Structure_usingInputRows(self, last_row, last_but_one_row, last_but_second_row):
+        retPattern = "Neutral"
+        
+        # normalize values to floats for comparisons
+        m = float(last_row.get('macd', 0))
+        s = float(last_row.get('macdsignal', 0))
+        h = float(last_row.get('histogram', 0))
+        h1 = float(last_but_one_row.get('histogram', 0))
+        h2 = float(last_but_second_row.get('histogram', 0))
+
+        # Bullish conditions (any of these indicates bullish momentum)
+        cond_macd_above = (m > s and m > 0)
+        cond_macd_above_with_pos_hist = (m > s and h > 0)
+        cond_hist_positive_and_rising = (h > 0 and h > h1 > h2)
+        cond_macd_positive_hist_rising = (m > 0 and s > 0 and h > h1 > h2)
+
+        # Bearish conditions (any of these indicates bearish momentum)
+        cond_macd_below = (m < s and m < 0)
+        cond_macd_below_with_neg_hist = (m < s and h < 0)
+        cond_hist_negative_and_falling = (h < 0 and h < h1 < h2)
+        cond_macd_negative_hist_falling = (m < 0 and s < 0 and h < h1 < h2)
+        cond_hist_falling_while_macd_pos = (m > 0 and s > 0 and h < h1 and h1 > h2)
+
+        if cond_macd_above or cond_macd_above_with_pos_hist or cond_hist_positive_and_rising or cond_macd_positive_hist_rising:
+            retPattern = "Bullish"
+        elif (cond_macd_below or cond_macd_below_with_neg_hist or cond_hist_negative_and_falling or cond_macd_negative_hist_falling or cond_hist_falling_while_macd_pos):
+            retPattern = "Bearish"
+
+        return retPattern
 
     def ResettoSampleData(self):
         
         # print(self.data30m.loc[self.data30m['unixtime'].astype(int) <= 1766005200, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(20).to_string(index=False))
         # print(self.data15m.loc[self.data15m['unixtime'].astype(int) <= 1766008000, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(20).to_string(index=False))
-        # print(self.data5m.loc[self.data5m['unixtime'].astype(int) <= 1766008000, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern', 'fivemaval']].tail(42).to_string(index=False))
+        # print(self.data5m.loc[self.data5m['unixtime'].astype(int) <= 1766008000, ['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern', 'ema5']].tail(42).to_string(index=False))
         # print(self.data30m[['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(30).to_string(index=False))
         # print(self.data15m[['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern']].tail(40).to_string(index=False))
-        # print(self.data5m[['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern', 'fivemaval']].tail(42).to_string(index=False))
+        # print(self.data5m[['unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal','open','close','high','low', 'symbol', 'interval','cspattern', 'cstwopattern', 'csfvgpattern', 'ema5']].tail(42).to_string(index=False))
         data_30m = """
         1766001600     12   17   15     00 26.10    31.96 673.12 672.52 673.32 672.24      30m    SPY   Bullish           na           na
         1766003400     12   17   15     30 22.72    30.73 672.53 671.30 673.00 671.20      30m    SPY   Bearish           na           na
@@ -243,7 +233,7 @@ class csPattern:
         if (is5m):
             column_names = [
                 'unixtime', 'nmonth', 'nday', 'hour', 'minute','rsi', 'rsignal', 'open', 'close', 'high', 'low',
-                'symbol', 'interval', 'cspattern', 'cstwopattern', 'csfvgpattern', 'fivemaval'
+                'symbol', 'interval', 'cspattern', 'cstwopattern', 'csfvgpattern', 'ema5'
             ]
 
         df = pd.read_csv(io.StringIO(data),

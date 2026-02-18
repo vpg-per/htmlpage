@@ -30,7 +30,7 @@ class csPattern:
         self.data15m = self.identify_candlebreakout_pattern(self.data15m)
         self.data30m = self.objMgr.GetStockdata_Byinterval(symbol, "30m", indicatorList = "rsi,macd")
         self.data30m = self.identify_candlebreakout_pattern(self.data30m)
-        
+                
         # self.ResettoSampleData()  
         loadedFromDB = True
         utc_now = datetime.now(timezone.utc)

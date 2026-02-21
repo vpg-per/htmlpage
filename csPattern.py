@@ -20,16 +20,171 @@ class csPattern:
         self.closeorderon5m = None
         self.htfPattern = None
 
+    def reduce_memory_usage(self, df, is5m=False):
+        """Downcast numeric dtypes and convert low-cardinality object cols to categorical.
+        This reduces peak memory when multiple DataFrames are kept in memory.
+        """
+        if df is None or df.empty:
+            return df
+
+        # downcast floats
+        for col in df.select_dtypes(include=['float64']).columns:
+            try:
+                df[col] = pd.to_numeric(df[col], downcast='float')
+            except Exception:
+                pass
+
+        # downcast ints
+        for col in df.select_dtypes(include=['int64']).columns:
+            try:
+                df[col] = pd.to_numeric(df[col], downcast='integer')
+            except Exception:
+                pass
+
+        # convert low-cardinality object columns to category
+        for col in df.select_dtypes(include=['object']).columns:
+            try:
+                if df[col].nunique(dropna=False) < 100:
+                    df[col] = df[col].astype('category')
+            except Exception:
+                pass
+
+        # keep ema5 compact for 5m
+        if is5m and 'ema5' in df.columns:
+            try:
+                df['ema5'] = pd.to_numeric(df['ema5'], downcast='float')
+            except Exception:
+                pass
+
+        return df
+
+    def reduce_memory_usage(self, df, is5m=False):
+        """Downcast numeric dtypes and convert low-cardinality object cols to categorical.
+        This reduces peak memory usage when handling multiple DataFrames.
+        """
+        if df is None or df.empty:
+            return df
+
+        # downcast floats -> float32 where possible
+        float_cols = df.select_dtypes(include=['float64']).columns
+        for col in float_cols:
+            try:
+                df[col] = pd.to_numeric(df[col], downcast='float')
+            except Exception:
+                pass
+
+        # downcast ints -> int32/int16 where possible
+        int_cols = df.select_dtypes(include=['int64']).columns
+        for col in int_cols:
+            try:
+                df[col] = pd.to_numeric(df[col], downcast='integer')
+            except Exception:
+                pass
+
+        # convert low-cardinality object columns to category
+        obj_cols = df.select_dtypes(include=['object']).columns
+        for col in obj_cols:
+            try:
+                if df[col].nunique(dropna=False) < 100:
+                    df[col] = df[col].astype('category')
+            except Exception:
+                pass
+
+        # ensure ema5 is float32 for 5m
+        if is5m and 'ema5' in df.columns:
+            df['ema5'] = pd.to_numeric(df['ema5'], downcast='float')
+
+        return df
+
+    def reduce_memory_usage(self, df, is5m=False):
+        """Downcast numeric dtypes and convert low-cardinality object cols to categorical.
+        This reduces peak memory usage when handling multiple DataFrames.
+        """
+        if df is None or df.empty:
+            return df
+
+        # downcast floats -> float32 where possible
+        float_cols = df.select_dtypes(include=['float64']).columns
+        for col in float_cols:
+            try:
+                df[col] = pd.to_numeric(df[col], downcast='float')
+            except Exception:
+                pass
+
+        # downcast ints -> int32/int16 where possible
+        int_cols = df.select_dtypes(include=['int64']).columns
+        for col in int_cols:
+            try:
+                df[col] = pd.to_numeric(df[col], downcast='integer')
+            except Exception:
+                pass
+
+        # convert low-cardinality object columns to category
+        obj_cols = df.select_dtypes(include=['object']).columns
+        for col in obj_cols:
+            try:
+                if df[col].nunique(dropna=False) < 100:
+                    df[col] = df[col].astype('category')
+            except Exception:
+                pass
+
+        # ensure ema5 is float32 for 5m
+        if is5m and 'ema5' in df.columns:
+            df['ema5'] = pd.to_numeric(df['ema5'], downcast='float')
+
+        return df
+
+    def reduce_memory_usage(self, df, is5m=False):
+        """Downcast numeric dtypes and convert low-cardinality object cols to categorical.
+        This reduces peak memory usage when handling multiple DataFrames.
+        """
+        if df is None or df.empty:
+            return df
+
+        # downcast floats -> float32 where possible
+        float_cols = df.select_dtypes(include=['float64']).columns
+        for col in float_cols:
+            try:
+                df[col] = pd.to_numeric(df[col], downcast='float')
+            except Exception:
+                pass
+
+        # downcast ints -> int32/int16 where possible
+        int_cols = df.select_dtypes(include=['int64']).columns
+        for col in int_cols:
+            try:
+                df[col] = pd.to_numeric(df[col], downcast='integer')
+            except Exception:
+                pass
+
+        # convert low-cardinality object columns to category
+        obj_cols = df.select_dtypes(include=['object']).columns
+        for col in obj_cols:
+            try:
+                if df[col].nunique(dropna=False) < 100:
+                    df[col] = df[col].astype('category')
+            except Exception:
+                pass
+
+        # ensure ema5 is float32 for 5m
+        if is5m and 'ema5' in df.columns:
+            df['ema5'] = pd.to_numeric(df['ema5'], downcast='float')
+
+        return df
+
     def analyze_stockcandlesLTF(self, symbol):
         todayn = datetime.now().strftime('%d')   
 
-        self.data5m = self.objMgr.GetStockdata_Byinterval(symbol, "5m", indicatorList = "rsi,macd")
+        self.data5m = self.objMgr.GetStockdata_Byinterval(symbol, "5m", indicatorList = "macd")
         self.data5m = self.identify_candlebreakout_pattern(self.data5m)
         self.data5m['ema5'] = round(self.data5m['close'].ewm(span=5, adjust=False).mean(), 2)
-        self.data15m = self.objMgr.GetStockdata_Byinterval(symbol, "15m", indicatorList = "rsi,macd")
+        self.data5m = self.reduce_memory_usage(self.data5m, is5m=True)
+        self.data15m = self.objMgr.GetStockdata_Byinterval(symbol, "15m", indicatorList = "macd")
         self.data15m = self.identify_candlebreakout_pattern(self.data15m)
-        self.data30m = self.objMgr.GetStockdata_Byinterval(symbol, "30m", indicatorList = "rsi,macd")
+        self.data15m = self.reduce_memory_usage(self.data15m)
+        self.data30m = self.objMgr.GetStockdata_Byinterval(symbol, "30m", indicatorList = "macd")
         self.data30m = self.identify_candlebreakout_pattern(self.data30m)
+        self.data30m = self.reduce_memory_usage(self.data30m)
                 
         # self.ResettoSampleData()  
         loadedFromDB = True
@@ -110,11 +265,14 @@ class csPattern:
         return
     
     def identify_candlebreakout_pattern(self, df, engulfFlag=True, fvgFlag=True):
-        df['cspattern'] = "Neutral"
+        df['cspattern'] = pd.Series(['Neutral'] * len(df),
+                            dtype=pd.CategoricalDtype(categories=['Neutral','Bullish','Bearish']))
         if (engulfFlag):
-            df['cstwopattern'] = "na"
+            df['cstwopattern'] = pd.Series(['na'] * len(df),
+                                   dtype=pd.CategoricalDtype(categories=['na','UlEngulf','EaEngulf']))
         if (fvgFlag):
-            df['csfvgpattern'] = "na"
+            df['csfvgpattern'] = pd.Series(['na'] * len(df),
+                                   dtype=pd.CategoricalDtype(categories=['na','EaFVG','UlFVG']))
         for i in range(1, len(df)):    
             o, h, l, c = df['open'].iloc[i], df['high'].iloc[i], df['low'].iloc[i], df['close'].iloc[i]
             p1_open, p1_high, p1_low, p1_close = df['open'].iloc[i-1], df['high'].iloc[i-1], df['low'].iloc[i-1], df['close'].iloc[i-1]       
@@ -146,19 +304,25 @@ class csPattern:
 
     def Structure_30m(self):
         mapattern = self.Structure_usingInputRows(self.data30m.iloc[-1], self.data30m.iloc[-2], self.data30m.iloc[-3])
-        self.data30m['macdpattern'] = 'na'
+        if 'macdpattern' not in self.data30m.columns:
+            self.data30m['macdpattern'] = pd.Series([pd.NA] * len(self.data30m),
+                                                    dtype=pd.CategoricalDtype(categories=['na','Bullish','Bearish']))
         self.data30m.at[self.data30m.index[-1], 'macdpattern'] = mapattern
         return 
         
     def Structure_15m(self):
         mapattern = self.Structure_usingInputRows(self.data15m.iloc[-1], self.data15m.iloc[-2], self.data15m.iloc[-3])
-        self.data15m['macdpattern'] = 'na'
+        if 'macdpattern' not in self.data15m.columns:
+            self.data15m['macdpattern'] = pd.Series([pd.NA] * len(self.data15m),
+                                                    dtype=pd.CategoricalDtype(categories=['na','Bullish','Bearish']))
         self.data15m.at[self.data15m.index[-1], 'macdpattern'] = mapattern
         return
         
     def Structure_5m(self):
         mapattern = self.Structure_usingInputRows(self.data5m.iloc[-1], self.data5m.iloc[-2], self.data5m.iloc[-3])
-        self.data5m['macdpattern'] = 'na'
+        if 'macdpattern' not in self.data5m.columns:
+            self.data5m['macdpattern'] = pd.Series([pd.NA] * len(self.data5m),
+                                                    dtype=pd.CategoricalDtype(categories=['na','Bullish','Bearish']))
         self.data5m.at[self.data5m.index[-1], 'macdpattern'] = mapattern
         return
     
@@ -252,4 +416,4 @@ class csPattern:
         engine='python'          # 'python' engine is required for complex regex separators
         )
         return df
-        
+

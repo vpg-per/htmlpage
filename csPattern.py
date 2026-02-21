@@ -113,6 +113,8 @@ class csPattern:
         return mspattern
 
     def parse_stockdataintervalforOpen(self):
+        if (self.data5m is None or self.data5m.empty or self.data15m is None or self.data15m.empty):
+            return
         self.Structure_15m()
         self.Structure_5m()
         last_5mrow = self.data5m.iloc[-1].copy()
@@ -133,8 +135,11 @@ class csPattern:
         return
 
     def parse_stockdataintervalforClose(self):
+        if (self.data5m is None or self.data5m.empty or self.data15m is None or self.data15m.empty):
+            return
         self.Structure_15m()
         self.Structure_5m()
+        print(self.data5m)
         last_5mrow = self.data5m.iloc[-1].copy()
         last_15mrow = self.data15m.iloc[-1].copy()
 

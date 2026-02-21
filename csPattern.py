@@ -22,44 +22,6 @@ class csPattern:
 
     def reduce_memory_usage(self, df, is5m=False):
         """Downcast numeric dtypes and convert low-cardinality object cols to categorical.
-        This reduces peak memory when multiple DataFrames are kept in memory.
-        """
-        if df is None or df.empty:
-            return df
-
-        # downcast floats
-        for col in df.select_dtypes(include=['float64']).columns:
-            try:
-                df[col] = pd.to_numeric(df[col], downcast='float')
-            except Exception:
-                pass
-
-        # downcast ints
-        for col in df.select_dtypes(include=['int64']).columns:
-            try:
-                df[col] = pd.to_numeric(df[col], downcast='integer')
-            except Exception:
-                pass
-
-        # convert low-cardinality object columns to category
-        for col in df.select_dtypes(include=['object']).columns:
-            try:
-                if df[col].nunique(dropna=False) < 100:
-                    df[col] = df[col].astype('category')
-            except Exception:
-                pass
-
-        # keep ema5 compact for 5m
-        if is5m and 'ema5' in df.columns:
-            try:
-                df['ema5'] = pd.to_numeric(df['ema5'], downcast='float')
-            except Exception:
-                pass
-
-        return df
-
-    def reduce_memory_usage(self, df, is5m=False):
-        """Downcast numeric dtypes and convert low-cardinality object cols to categorical.
         This reduces peak memory usage when handling multiple DataFrames.
         """
         if df is None or df.empty:
@@ -90,85 +52,15 @@ class csPattern:
             except Exception:
                 pass
 
-        # ensure ema5 is float32 for 5m
         if is5m and 'ema5' in df.columns:
-            df['ema5'] = pd.to_numeric(df['ema5'], downcast='float')
+            df['ema5'] = pd.to_numeric(df['ema5'], downcast='float').map('{:.2f}'.format)
 
-        return df
-
-    def reduce_memory_usage(self, df, is5m=False):
-        """Downcast numeric dtypes and convert low-cardinality object cols to categorical.
-        This reduces peak memory usage when handling multiple DataFrames.
-        """
-        if df is None or df.empty:
-            return df
-
-        # downcast floats -> float32 where possible
-        float_cols = df.select_dtypes(include=['float64']).columns
-        for col in float_cols:
-            try:
-                df[col] = pd.to_numeric(df[col], downcast='float')
-            except Exception:
-                pass
-
-        # downcast ints -> int32/int16 where possible
-        int_cols = df.select_dtypes(include=['int64']).columns
-        for col in int_cols:
-            try:
-                df[col] = pd.to_numeric(df[col], downcast='integer')
-            except Exception:
-                pass
-
-        # convert low-cardinality object columns to category
-        obj_cols = df.select_dtypes(include=['object']).columns
-        for col in obj_cols:
-            try:
-                if df[col].nunique(dropna=False) < 100:
-                    df[col] = df[col].astype('category')
-            except Exception:
-                pass
-
-        # ensure ema5 is float32 for 5m
-        if is5m and 'ema5' in df.columns:
-            df['ema5'] = pd.to_numeric(df['ema5'], downcast='float')
-
-        return df
-
-    def reduce_memory_usage(self, df, is5m=False):
-        """Downcast numeric dtypes and convert low-cardinality object cols to categorical.
-        This reduces peak memory usage when handling multiple DataFrames.
-        """
-        if df is None or df.empty:
-            return df
-
-        # downcast floats -> float32 where possible
-        float_cols = df.select_dtypes(include=['float64']).columns
-        for col in float_cols:
-            try:
-                df[col] = pd.to_numeric(df[col], downcast='float')
-            except Exception:
-                pass
-
-        # downcast ints -> int32/int16 where possible
-        int_cols = df.select_dtypes(include=['int64']).columns
-        for col in int_cols:
-            try:
-                df[col] = pd.to_numeric(df[col], downcast='integer')
-            except Exception:
-                pass
-
-        # convert low-cardinality object columns to category
-        obj_cols = df.select_dtypes(include=['object']).columns
-        for col in obj_cols:
-            try:
-                if df[col].nunique(dropna=False) < 100:
-                    df[col] = df[col].astype('category')
-            except Exception:
-                pass
-
-        # ensure ema5 is float32 for 5m
-        if is5m and 'ema5' in df.columns:
-            df['ema5'] = pd.to_numeric(df['ema5'], downcast='float')
+        # for col in ('open', 'close', 'high', 'low', 'ema5'):
+        #     if col in df.columns:
+        #         try:
+        #             df[col] = pd.to_numeric(df[col], errors='coerce').map('{:.2f}'.format)
+        #         except Exception:
+        #             pass
 
         return df
 
@@ -235,7 +127,7 @@ class csPattern:
             stoploss = last_15mrow['high']
         if (stoploss > 0 or profittarget > 0):
             self.openorderon5m = {"symbol": last_5mrow['symbol'], "stockprice": float(last_5mrow['ema5']), "cspattern": last_5mrow['macdpattern'], "cstwopattern": last_5mrow['cstwopattern'], "csfvgpattern": last_5mrow['csfvgpattern'],
-                "unixtime": int(last_5mrow['unixtime']), 'stoploss': float(stoploss), 'profittarget': float(profittarget),
+                "unixtime": int(last_5mrow['unixtime']), 'stoploss': round(float(stoploss), 2), 'profittarget': round(float(profittarget), 2),
                 'hour': int(last_5mrow['hour']), 'minute': int(last_5mrow['minute']), "updatedTriggerTime" : int(last_5mrow['unixtime'])}
 
         return
@@ -259,7 +151,7 @@ class csPattern:
                 self.openorderon5m['profittarget'] = float(last_15mrow['low'])
                 self.openorderon5m['stoploss'] = float(last_15mrow['high'])
         else:
-             self.closeorderon5m = {"symbol": last_5mrow['symbol'], "stockprice": float(last_5mrow['open']), "cspattern": last_5mrow['macdpattern'],
+             self.closeorderon5m = {"symbol": last_5mrow['symbol'], "stockprice": round(float(last_5mrow['open']), 2), "cspattern": last_5mrow['macdpattern'],
                 "unixtime": int(last_5mrow['unixtime']), 'stoploss': "0", 'profittarget': "0", 'hour': int(last_5mrow['hour']), 'minute': int(last_5mrow['minute'])}
                     
         return

@@ -33,14 +33,13 @@ def process_stocksignal(symbol="SPY"):
 @app.route("/csPattern")
 def CandleStickPattern():
     stocksymbols = request.args.get('symbol', type=str).upper()
-    if  stocksymbols:
-            stocksymbols = stocksymbols.split(",")
+    if stocksymbols:
+        stocksymbols = stocksymbols.split(",")
     else:
         stocksymbols = os.getenv("CUSTOM_ALERT_SYMBOL")
         stocksymbols = stocksymbols.split(",") if stocksymbols else ['SPY']
 
     allsymbols_data = []
-
     for symbol in stocksymbols:
         dbrecval = altMgr.GetStockOrderRecordfromDB(symbol, 'Open')
         cs = csPattern()

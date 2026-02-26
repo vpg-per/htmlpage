@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 import numpy as np
 import pandas as pd
-from flask import Flask, render_template, request, render_template_string
+from flask import Flask, render_template, request
 
 from dataManager import ServiceManager
 from alertManager import AlertManager
@@ -14,43 +14,56 @@ from csPattern import csPattern
 
 app = Flask(__name__)
 
-# Use a single shared instance; do NOT store DataFrames as globals
+# Shared singletons — never store DataFrames on these
 g_message = []
 objMgr = ServiceManager()
 altMgr = AlertManager()
 
 
-def process_stocksignal(symbol="SPY"):
-    """Fetch and analyze stock data, prepare alert messages. Returns DataFrame."""
-    global g_message
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
+def process_stocksignal(symbol="SPY"):
+    """Fetch + analyse one symbol; return a minimal DataFrame slice."""
+    global g_message
     df = objMgr.analyze_stockdata(symbol)
     altMgr.prepare_crsovr_message(df)
     g_message = altMgr.get_message()
     return df
 
 
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
+
 @app.route("/csPattern")
 def CandleStickPattern():
-    stocksymbols = request.args.get('symbol', type=str)
-    if stocksymbols:
-        stocksymbols = stocksymbols.upper().split(",")
+    # Parse symbol list
+    raw = request.args.get('symbol', type=str)
+    if raw:
+        stocksymbols = [raw.upper()]
     else:
-        stocksymbols = os.getenv("CUSTOM_ALERT_SYMBOL")
-        stocksymbols = stocksymbols.split(",") if stocksymbols else ['SPY']
+        env_sym = os.getenv("CUSTOM_ALERT_SYMBOL", "")
+        stocksymbols = [s.strip() for s in env_sym.split(",") if s.strip()] or ['SPY']
 
     allsymbols_data = []
+
     for symbol in stocksymbols:
+        # Load any existing open order from DB before constructing csPattern
         dbrecval = altMgr.GetStockOrderRecordfromDB(symbol, 'Open')
+
         cs = csPattern()
         if dbrecval is not None:
             cs.openorderon5m = dbrecval
 
+        # analyze_stockcandlesLTF already frees its DataFrames internally
         cs.analyze_stockcandlesLTF(symbol)
 
         open_order  = cs.openorderon5m
         close_order = cs.closeorderon5m
 
+        # ---- open signal ----
         if open_order is not None and close_order is None:
             existing = altMgr.GetStockOrderRecordusingUnixTime(
                 symbol,
@@ -60,6 +73,7 @@ def CandleStickPattern():
             )
             if existing is None:
                 altMgr.AddOpenStockOrderRecordtoDB(open_order)
+                # Only alert on genuinely new candles (first detection)
                 if open_order['updatedTriggerTime'] == open_order['unixtime']:
                     allsymbols_data.append(
                         f"Symbol: {open_order['symbol']} "
@@ -70,18 +84,20 @@ def CandleStickPattern():
                         f"profittarget: {open_order['profittarget']}"
                     )
 
+        # ---- close signal ----
         if close_order is not None:
-            altMgr.AddOpenStockOrderRecordtoDB(open_order, "OpenClose")
+            if open_order is not None:
+                altMgr.AddOpenStockOrderRecordtoDB(open_order, "OpenClose")
             allsymbols_data.append(
                 f"Symbol: {close_order['symbol']} "
                 f"Time: {close_order['hour']}:{close_order['minute']} "
                 f"Pattern: {close_order['cspattern']}, "
                 f"close price: {close_order['stockprice']}"
             )
-            altMgr.openorderon5m  = None
-            altMgr.closeorderon5m = None
+            cs.openorderon5m  = None
+            cs.closeorderon5m = None
 
-        # Release per-symbol object immediately
+        # Free everything for this symbol immediately
         del cs, open_order, close_order, dbrecval
 
     resultdata = ",".join(allsymbols_data)
@@ -95,20 +111,21 @@ def CandleStickPattern():
 
 @app.route("/marketPattern")
 def marketPattern():
-    stocksymbols = ['NQ%3DF', 'RTY%3DF', 'GC%3DF']
+    stocksymbols    = ['NQ%3DF', 'RTY%3DF', 'GC%3DF']
     allsymbols_data = []
 
     for symbol in stocksymbols:
-        cs = csPattern()
-        ret = cs.analyze_stockcandlesHTF(symbol)
+        cs  = csPattern()
+        ret = cs.analyze_stockcandlesHTF(symbol)   # frees DataFrames internally
         if ret is not None:
             allsymbols_data.append(ret)
-        del cs  # free per-symbol object immediately
+        del cs
+        gc.collect()
 
     sentmsg = "done!"
     if allsymbols_data:
         resultdata = ", ".join(str(item) for item in allsymbols_data)
-        sentmsg = altMgr.send_chart_alert(resultdata)
+        altMgr.send_chart_alert(resultdata)
         sentmsg = resultdata
 
     del allsymbols_data
@@ -126,14 +143,15 @@ def ScalpPattern():
 
     if not summary:
         del scalper
+        gc.collect()
         return "<h1>Error: Could not generate analysis.</h1>", 500
 
-    image_buffer = scalper.plot_15min_chart(bars_to_show=96)
+    image_buffer       = scalper.plot_15min_chart(bars_to_show=96)
     chart_image_base64 = base64.b64encode(image_buffer.getvalue()).decode('utf-8')
-
-    # Free the buffer and scalper object immediately after encoding
     image_buffer.close()
+
     del scalper, image_buffer
+    gc.collect()
 
     return render_template('./scalp.html', summary=summary, chart_image=chart_image_base64)
 
@@ -145,49 +163,50 @@ def BkOutInvoke():
 
 @app.route('/rangePattern')
 def RangePattern():
-    dt = datetime.now()
+    dt  = datetime.now()
     fmt = '%Y-%m-%d %H:%M:%S %z'
     pmst_dt  = datetime.strptime(f"{dt.date()} 4:00:00 -0400",  fmt)
     regst_dt = datetime.strptime(f"{dt.date()} 9:30:00 -0400",  fmt)
     reget_dt = datetime.strptime(f"{dt.date()} 10:00:00 -0400", fmt)
 
-    # Cap end period to now if market hasn't opened yet
     if int(datetime.now().timestamp()) < reget_dt.timestamp():
         reget_dt = datetime.now().astimezone(reget_dt.tzinfo)
 
-    stocksymbols = ['SPY']
     allsymbols_data = []
     pm_data = rg_data = ""
 
-    for ss in stocksymbols:
+    for ss in ['SPY']:
         df = objMgr.download_stock_data(
             ss,
             startPeriod=pmst_dt.timestamp(),
             endPeriod=reget_dt.timestamp(),
             interval="15m"
         )
+        if df is None:
+            continue
 
-        # Pre-market slice
-        df_pm = df[df['unixtime'] <= regst_dt.timestamp() - 1]
-        if not df_pm.empty:
+        # Compute pre-market summary — only scalar aggregates kept
+        mask_pm = df['unixtime'] <= int(regst_dt.timestamp()) - 1
+        if mask_pm.any():
             pm_data = (
-                f"O:{df_pm['open'].iloc[0]}, "
-                f"C:{df_pm['close'].iloc[-1]}, "
-                f"L:{df_pm['low'].min()}, "
-                f"H:{df_pm['high'].max()}"
+                f"O:{df.loc[mask_pm,  'open'].iloc[0]:.2f}, "
+                f"C:{df.loc[mask_pm,  'close'].iloc[-1]:.2f}, "
+                f"L:{df.loc[mask_pm,  'low'].min():.2f}, "
+                f"H:{df.loc[mask_pm,  'high'].max():.2f}"
             )
-        del df_pm
 
-        # Regular session slice
-        df_rg = df[df['unixtime'] >= regst_dt.timestamp() - 1]
-        if not df_rg.empty:
+        # Compute regular-session summary
+        mask_rg = df['unixtime'] >= int(regst_dt.timestamp()) - 1
+        if mask_rg.any():
             rg_data = (
-                f"O:{df_rg['open'].iloc[0]}, "
-                f"C:{df_rg['close'].iloc[-1]}, "
-                f"L:{df_rg['low'].min()}, "
-                f"H:{df_rg['high'].max()}"
+                f"O:{df.loc[mask_rg, 'open'].iloc[0]:.2f}, "
+                f"C:{df.loc[mask_rg, 'close'].iloc[-1]:.2f}, "
+                f"L:{df.loc[mask_rg, 'low'].min():.2f}, "
+                f"H:{df.loc[mask_rg, 'high'].max():.2f}"
             )
-        del df_rg, df  # free the full frame right away
+
+        del df          # free the full frame right away
+        gc.collect()
 
         allsymbols_data.append(
             f'{{ "symbol": "{ss}", "pmdata": "{{{pm_data}}}", "rgdata": "{{{rg_data}}}" }}'
@@ -222,21 +241,22 @@ def dayTrend():
 @app.route('/returnPattern')
 def ReturnPattern():
     global g_message
-
     g_message = []
     altMgr.set_message(g_message)
 
-    symbol = request.args.get('symbol', default='', type=str).upper()
+    symbol       = request.args.get('symbol', default='', type=str).upper()
     stocksymbols = [symbol] if symbol else ['GLD', 'QQQ', 'IWM']
 
-    # Collect slices, then concat once — avoids growing a frame in a loop
+    # Process each symbol, stream-concat into a single result; never hold
+    # more than one symbol's DataFrame in memory at once
     frames = []
     for ss in stocksymbols:
         df_stock = process_stocksignal(ss)
         frames.append(df_stock)
-        del df_stock  # drop reference; concat below will handle memory
+        del df_stock
+        gc.collect()
 
-    df_allsymbols = pd.concat(frames, ignore_index=False) if frames else pd.DataFrame()
+    df_allsymbols = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
     del frames
     gc.collect()
 
@@ -246,6 +266,7 @@ def ReturnPattern():
 
     result = df_allsymbols.to_json(orient='records', index=False)
     del df_allsymbols
+    gc.collect()
     return result
 
 

@@ -2,215 +2,199 @@ import requests
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta, timezone
-from time import gmtime, strftime
-from zoneinfo import ZoneInfo
+import gc
+
+# Only the columns needed after processing — avoids carrying dead weight
+_FINAL_COLS_MACD = ['unixtime', 'nmonth', 'nday', 'hour', 'minute',
+                    'macd', 'msignal', 'histogram', 'open', 'close', 'high', 'low',
+                    'interval', 'symbol']
+_FINAL_COLS_RSI  = ['unixtime', 'nmonth', 'nday', 'hour', 'minute',
+                    'rsi', 'rsignal', 'crossover', 'open', 'close', 'high', 'low',
+                    'interval', 'symbol']
+
 
 class ServiceManager:
     def __init__(self):
-        # No longer storing full DataFrames as instance variables to save memory.
         pass
 
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
     def analyze_stockdata(self, symbol):
-        todayn = datetime.now().strftime('%d')
+        todayn     = datetime.now().strftime('%d')
         yesterdayn = (datetime.now() - timedelta(days=1)).strftime('%d')
 
-        data5m = self.GetStockdata_Byinterval(symbol, "5m", indicatorList="macd")
+        # 5m: keep only today's last 20 rows right after fetch
+        data5m    = self.GetStockdata_Byinterval(symbol, "5m", indicatorList="macd")
         df_merged = data5m[data5m['nday'] == todayn].tail(20).copy()
         del data5m
+        gc.collect()
 
+        # Fetch 15m / 30m / 1h once, slice immediately after each use
         data15m = self.GetStockdata_Byinterval(symbol, "15m", indicatorList="macd")
         data30m = self.GetStockdata_Byinterval(symbol, "30m", indicatorList="macd")
         data1h  = self.GetStockdata_Byinterval(symbol, "1h",  indicatorList="macd")
 
-        data15m = self.calculate_Buy_Sell_Values(data15m, data30m, 65)
-        df_merged = pd.concat(
-            [df_merged, data15m[data15m['nday'] == todayn].tail(12)],
-            ignore_index=True
-        )
+        data15m  = self.calculate_Buy_Sell_Values(data15m, data30m, 65)
+        slice15  = data15m[data15m['nday'] == todayn].tail(12).copy()
         del data15m
+        gc.collect()
 
-        data30m = self.calculate_Buy_Sell_Values(data30m, data1h, 125)
-        df_merged = pd.concat(
-            [df_merged, data30m[data30m['nday'] == todayn].tail(8)],
-            ignore_index=True
-        )
+        data30m  = self.calculate_Buy_Sell_Values(data30m, data1h, 125)
+        slice30  = data30m[data30m['nday'] == todayn].tail(8).copy()
         del data30m
+        gc.collect()
+
+        slice1h  = data1h[data1h['nday'] == todayn].tail(4).copy()
+        del data1h
+        gc.collect()
+
+        # 4h: only last 3 rows, then filter to today/yesterday
+        data4h  = self.GetStockdata_Byinterval(symbol, "4h", indicatorList="macd").tail(3)
+        slice4h = data4h[(data4h['nday'] == todayn) | (data4h['nday'] == yesterdayn)].copy()
+        if len(slice4h) == 0:
+            slice4h = data4h.copy()
+        del data4h
+        gc.collect()
 
         df_merged = pd.concat(
-            [df_merged, data1h[data1h['nday'] == todayn].tail(4)],
+            [df_merged, slice15, slice30, slice1h, slice4h],
             ignore_index=True
         )
-        del data1h
-
-        data4h = self.GetStockdata_Byinterval(symbol, "4h", indicatorList="macd").tail(3)
-        df_temp = data4h[(data4h['nday'] == todayn) | (data4h['nday'] == yesterdayn)]
-        if len(df_temp) == 0:
-            df_temp = data4h
-        df_merged = pd.concat([df_merged, df_temp], ignore_index=True)
-        del data4h, df_temp
+        del slice15, slice30, slice1h, slice4h
+        gc.collect()
 
         return df_merged
 
     def GetStockdata_Byinterval(self, symbol, interval="1d", indicatorList="macd"):
-        stPeriod = int((datetime.now() - timedelta(days=4)).timestamp())
+        stPeriod  = int((datetime.now() - timedelta(days=4)).timestamp())
         endPeriod = datetime.now()
-        minutes_to_subtract = endPeriod.minute % 5
-        endPeriod = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0)
+        rem = endPeriod.minute % 5
+        endPeriod = endPeriod.replace(minute=endPeriod.minute - rem, second=0, microsecond=0)
 
         df = self.download_stock_data(symbol, stPeriod, endPeriod.timestamp(), interval)
         if df is None:
             print("Failed to fetch data. Please check your internet connection.")
-            return
+            return None
 
+        # ---- interval-specific trimming / resampling ----
         if interval == "5m":
-            valid_minutes = {"00","05","10","15","20","25","30","35","40","45","50","55"}
-            df = df[(df['unixtime'] <= endPeriod.timestamp()) & (df['minute'].isin(valid_minutes))]
+            valid_min = {"00","05","10","15","20","25","30","35","40","45","50","55"}
+            mask = (df['unixtime'] <= endPeriod.timestamp()) & df['minute'].isin(valid_min)
+            df   = df.loc[mask].copy()
 
         elif interval == "15m":
-            minutes_to_subtract = endPeriod.minute % 15
-            ep = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0).timestamp() - 1
-            df = df[(df['unixtime'] <= ep) & (df['minute'].isin({"00","15","30","45"}))]
+            rem15 = endPeriod.minute % 15
+            ep    = endPeriod.replace(minute=endPeriod.minute - rem15, second=0, microsecond=0).timestamp() - 1
+            df    = df.loc[(df['unixtime'] <= ep) & df['minute'].isin({"00","15","30","45"})].copy()
 
         elif interval == "30m":
-            minutes_to_subtract = endPeriod.minute % 30
-            ep = endPeriod.replace(minute=endPeriod.minute - minutes_to_subtract, second=0, microsecond=0).timestamp() - 1
-            df = df[(df['unixtime'] <= ep) & (df['minute'].isin({"00","30"}))]
+            rem30 = endPeriod.minute % 30
+            ep    = endPeriod.replace(minute=endPeriod.minute - rem30, second=0, microsecond=0).timestamp() - 1
+            df    = df.loc[(df['unixtime'] <= ep) & df['minute'].isin({"00","30"})].copy()
 
         elif interval == "1h":
-            df = df.resample('1h', origin='05:00:00-04:00').agg({
-                'unixtime': 'first',
-                'open': 'first',
-                'high': 'max',
-                'low': 'min',
-                'close': 'last'
-            }).dropna()
+            df = (
+                df.resample('1h', origin='05:00:00-04:00')
+                .agg({'unixtime':'first','open':'first','high':'max','low':'min','close':'last'})
+                .dropna()
+            )
             ep = endPeriod.replace(minute=0, second=0, microsecond=0).timestamp()
-            df = df[df['unixtime'] <= ep]
-            df['unixtime'] = pd.to_numeric(df['unixtime'])
-            # Compute datetime series once
-            dt_ny = pd.to_datetime(df['unixtime'], unit='s').dt.tz_localize('UTC').dt.tz_convert('America/New_York')
-            df['rec_dt'] = dt_ny.dt.date
-            df['nmonth'] = dt_ny.dt.strftime('%m').astype('category')
-            df['nday']   = dt_ny.dt.strftime('%d').astype('category')
-            df['hour']   = dt_ny.dt.strftime('%H').astype('category')
-            df['minute'] = dt_ny.dt.strftime('%M').astype('category')
-            del dt_ny
+            df = df[df['unixtime'] <= ep].copy()
+            df['unixtime'] = df['unixtime'].astype('int32')
+            df = self._attach_dt_cols(df)
 
         elif interval == "4h":
-            df = df[df['minute'].isin({"00"})]
-            hours_to_subtract = endPeriod.hour % 4
-            ep = endPeriod.replace(hour=endPeriod.hour - hours_to_subtract, minute=0, second=0, microsecond=0).timestamp() - 1
-            df = df[df['unixtime'] <= ep]
-            df = df.resample('4h', origin='05:00:00-04:00', closed='right', label='right').agg({
-                'unixtime': 'first',
-                'open': 'first',
-                'high': 'max',
-                'low': 'min',
-                'close': 'last'
-            }).dropna()
-            df['unixtime'] = pd.to_numeric(df['unixtime'])
-            dt_ny = pd.to_datetime(df['unixtime'], unit='s').dt.tz_localize('UTC').dt.tz_convert('America/New_York')
-            df['rec_dt'] = dt_ny.dt.date
-            df['nmonth'] = dt_ny.dt.strftime('%m').astype('category')
-            df['nday']   = dt_ny.dt.strftime('%d').astype('category')
-            df['hour']   = dt_ny.dt.strftime('%H').astype('category')
-            df['minute'] = dt_ny.dt.strftime('%M').astype('category')
-            del dt_ny
+            df  = df[df['minute'].isin({"00"})].copy()
+            rem4 = endPeriod.hour % 4
+            ep   = endPeriod.replace(
+                hour=endPeriod.hour - rem4, minute=0, second=0, microsecond=0
+            ).timestamp() - 1
+            df = df[df['unixtime'] <= ep].copy()
+            df = (
+                df.resample('4h', origin='05:00:00-04:00', closed='right', label='right')
+                .agg({'unixtime':'first','open':'first','high':'max','low':'min','close':'last'})
+                .dropna()
+            )
+            df['unixtime'] = df['unixtime'].astype('int32')
+            df = self._attach_dt_cols(df)
             df['hour'] = df['hour'].cat.rename_categories(lambda x: "17" if x == "18" else x)
 
-        # Compute indicators on df in-place (no separate copy)
+        # ---- compute indicators in-place (no copy) ----
         if "macd" in indicatorList:
-            df = self.calculate_macd(df)
+            df = self._calculate_macd_inplace(df)
         if "rsi" in indicatorList:
-            df = self.calculate_rsi(df)
+            df = self._calculate_rsi_inplace(df)
 
-        # Select only needed columns
-        base_cols = ['unixtime', 'nmonth', 'nday', 'hour', 'minute']
-        indicator_cols = []
-        if "macd" in indicatorList:
-            indicator_cols += ['macd', 'msignal', 'histogram']
-        if "rsi" in indicatorList:
-            indicator_cols += ['rsi', 'rsignal']
-
-        final_cols = [c for c in base_cols + indicator_cols + ['open', 'close', 'high', 'low'] if c in df.columns]
-        df_sel = df[final_cols].copy()
+        # ---- drop every column we don't need ----
+        want = _FINAL_COLS_MACD if "macd" in indicatorList else _FINAL_COLS_RSI
+        keep = [c for c in want if c in df.columns]
+        df_sel = df[keep].copy()
         del df
+        gc.collect()
 
-        df_sel['interval'] = pd.Categorical([interval] * len(df_sel))
-        df_sel['symbol']   = pd.Categorical([symbol.replace("%3DF", "")] * len(df_sel))
+        sym_clean        = symbol.replace("%3DF", "")
+        df_sel['interval'] = pd.Categorical([interval]  * len(df_sel))
+        df_sel['symbol']   = pd.Categorical([sym_clean] * len(df_sel))
 
         return df_sel
 
     def download_stock_data(self, symbol, startPeriod, endPeriod, interval="1d"):
-        """
-        Fetch stock data from Yahoo Finance API.
-        interval: 1m,2m,5m,15m,30m,60m,90m,1h,1d,5d,1wk,1mo,3mo
-        """
+        """Fetch OHLCV from Yahoo Finance. Returns DataFrame with tz-aware index."""
         if interval in ("4h", "1h"):
             interval = "30m"
 
-        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+        url    = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
         params = {
-            'period1': int(startPeriod),
-            'period2': int(endPeriod),
-            'interval': interval,
-            'includePrePost': 'true'
+            'period1':        int(startPeriod),
+            'period2':        int(endPeriod),
+            'interval':       interval,
+            'includePrePost': 'true',
         }
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
 
         try:
-            response = requests.get(url, params=params, headers=headers)
-            response.raise_for_status()
-            data = response.json()
-
+            resp = requests.get(url, params=params, headers=headers, timeout=15)
+            resp.raise_for_status()
+            data   = resp.json()
             result = data['chart']['result'][0]
-            timestamps = result['timestamp']
             quotes = result['indicators']['quote'][0]
 
+            # int32 timestamps — saves half the memory vs int64
+            ts_arr = np.asarray(result['timestamp'], dtype='int32')
+
             df = pd.DataFrame({
-                'unixtime': np.array(timestamps, dtype=np.int32),
-                'open':  pd.array(quotes['open'],  dtype='float32'),
-                'high':  pd.array(quotes['high'],  dtype='float32'),
-                'low':   pd.array(quotes['low'],   dtype='float32'),
-                'close': pd.array(quotes['close'], dtype='float32'),
+                'unixtime': ts_arr,
+                'open':  np.asarray(quotes['open'],  dtype='float32'),
+                'high':  np.asarray(quotes['high'],  dtype='float32'),
+                'low':   np.asarray(quotes['low'],   dtype='float32'),
+                'close': np.asarray(quotes['close'], dtype='float32'),
             })
             df.dropna(inplace=True)
 
-            # Build timestamp index once from unixtime
-            ts = pd.to_datetime(df['unixtime'], unit='s').dt.tz_localize('UTC').dt.tz_convert('America/New_York')
-            df.index = ts
+            # Build tz-aware index + derived columns in one pass
+            ts = (
+                pd.to_datetime(df['unixtime'], unit='s')
+                .dt.tz_localize('UTC')
+                .dt.tz_convert('America/New_York')
+            )
+            df.index      = ts
             df.index.name = 'timestamp'
-
             df['rec_dt'] = ts.dt.date.values
             df['nmonth'] = ts.dt.strftime('%m').astype('category')
             df['nday']   = ts.dt.strftime('%d').astype('category')
             df['hour']   = ts.dt.strftime('%H').astype('category')
             df['minute'] = ts.dt.strftime('%M').astype('category')
+            del ts
 
             return df
 
         except requests.exceptions.RequestException as e:
             print(f"Error fetching data: {e}")
-            return None
         except KeyError as e:
             print(f"Error parsing data: {e}")
-            return None
-
-    def calculate_macd(self, df, fast=12, slow=26, signal=9):
-        """Calculate MACD, Signal, and Histogram. Operates in-place."""
-        close = df['close']
-        ema_fast = close.ewm(span=fast, adjust=False).mean()
-        ema_slow = close.ewm(span=slow, adjust=False).mean()
-        macd_line = ema_fast - ema_slow
-        signal_line = macd_line.ewm(span=signal, adjust=False).mean()
-
-        df['macd']      = macd_line.round(2).astype('float32')
-        df['msignal']   = signal_line.round(2).astype('float32')
-        df['histogram'] = (macd_line - signal_line).round(2).astype('float32')
-
-        return df
+        return None
 
     def calculate_Buy_Sell_Values(self, dfcur, dfhtf, lookupmins):
         dfcur = dfcur.copy()
@@ -220,36 +204,36 @@ class ServiceManager:
         dfcur['crossover'] = 'Neutral'
 
         lookupts = int((datetime.now() - timedelta(minutes=lookupmins)).timestamp())
-        dfcur = dfcur[dfcur['unixtime'].astype(int) >= lookupts].copy()
+        dfcur    = dfcur[dfcur['unixtime'].astype('int32') >= lookupts].copy()
 
         if not dfcur.empty:
-            dfhtf = dfhtf[dfhtf['unixtime'].astype(int) >= lookupts]
-            dfcur['ninemaval']     = dfcur['close'].rolling(window=9).mean().round(2)
+            dfhtf_trim = dfhtf[dfhtf['unixtime'].astype('int32') >= lookupts]
+
+            # Rolling 9-bar mean + lag histogram — computed only on the trimmed slice
+            dfcur['ninemaval']      = dfcur['close'].rolling(window=9).mean().round(2)
             dfcur['histogram_prev'] = dfcur['histogram'].shift(1)
 
-            last_dfrec = dfcur.iloc[[-1]]
-            if not last_dfrec.empty and not dfhtf.empty:
-                last_dfhtf_rec = dfhtf.iloc[[-1]]
-                hist_cur  = last_dfrec['histogram'].iloc[0]
-                hist_prev = last_dfrec['histogram_prev'].iloc[0]
-                change_values = False
-                crossoverval = 'Neutral'
+            last_row   = dfcur.iloc[-1]
+            hist_cur   = float(last_row['histogram'])
+            hist_prev  = float(last_row['histogram_prev'])
+            change     = False
+            crossval   = 'Neutral'
 
-                if hist_cur >= 0 and hist_prev <= 0 and hist_prev != hist_cur:
-                    change_values = True
-                    crossoverval = 'Bullish'
-                elif hist_cur <= 0 and hist_prev >= 0 and hist_prev != hist_cur:
-                    change_values = True
-                    crossoverval = 'Bearish'
+            if hist_cur >= 0 and hist_prev <= 0 and hist_prev != hist_cur:
+                change, crossval = True, 'Bullish'
+            elif hist_cur <= 0 and hist_prev >= 0 and hist_prev != hist_cur:
+                change, crossval = True, 'Bearish'
 
-                if change_values:
-                    idx = last_dfrec.index[0]
-                    dfcur.loc[idx, 'crossover'] = crossoverval
-                    dfcur.loc[idx, 'buyval']    = last_dfrec['ninemaval'].iloc[0]
-                    dfcur.loc[idx, 'sellval']   = last_dfhtf_rec['close'].iloc[0]
-                    dfcur.loc[idx, 'stoploss']  = last_dfhtf_rec['open'].iloc[0]
+            if change and not dfhtf_trim.empty:
+                last_htf = dfhtf_trim.iloc[-1]
+                idx = dfcur.index[-1]
+                dfcur.loc[idx, 'crossover'] = crossval
+                dfcur.loc[idx, 'buyval']    = float(last_row['ninemaval'])
+                dfcur.loc[idx, 'sellval']   = float(last_htf['close'])
+                dfcur.loc[idx, 'stoploss']  = float(last_htf['open'])
 
             dfcur.drop(columns=['histogram_prev', 'ninemaval'], inplace=True)
+            del dfhtf_trim
 
         return dfcur
 
@@ -258,7 +242,7 @@ class ServiceManager:
         if len(data) < 3:
             return data
 
-        data['pattern']  = 'NA'
+        data['pattern']   = 'NA'
         data['pattern2c'] = 'NA'
         data['pattern3c'] = 'NA'
 
@@ -269,13 +253,11 @@ class ServiceManager:
         idx    = data.index
 
         for i in range(3, len(data)):
-            o, h, l, c = opens[i], highs[i], lows[i], closes[i]
-            o_prev, h_prev, l_prev, c_prev = opens[i-1], highs[i-1], lows[i-1], closes[i-1]
-
+            o, h, l, c  = opens[i],   highs[i],   lows[i],   closes[i]
+            o1, h1, l1, c1 = opens[i-1], highs[i-1], lows[i-1], closes[i-1]
             body        = abs(c - o)
             price_range = h - l
 
-            # Single-bar patterns
             if price_range > 0:
                 ratio = body / price_range
                 if ratio < 0.1:
@@ -283,26 +265,18 @@ class ServiceManager:
                 elif ratio > 0.95:
                     data.loc[idx[i], 'pattern'] = 'UM' if c > o else 'EM'
 
-            # Two-bar patterns
-            if c > o and l > l_prev and c > o_prev and price_range > 0 and body / price_range > 0.95:
+            if c > o and l > l1 and c > o1 and price_range > 0 and body / price_range > 0.95:
                 data.loc[idx[i], 'pattern2c'] = 'UE'
-            elif c < o and h < h_prev and c < o_prev and price_range > 0 and body / price_range > 0.95:
+            elif c < o and h < h1 and c < o1 and price_range > 0 and body / price_range > 0.95:
                 data.loc[idx[i], 'pattern2c'] = 'EE'
 
-            # Three-bar patterns
-            o_p2, c_p2 = opens[i-2], closes[i-2]
-            o_p3, c_p3 = opens[i-3], closes[i-3]
-
-            is_three_white = c_p3 < o_p3 and c_p2 > o_p2 and c_prev > o_prev
-            is_higher_highs = c_p2 > c_p3 and c_prev > c_p2
-            is_strike_down  = c < o and o > c_prev and c < o_p3
-            if is_three_white and is_higher_highs and is_strike_down:
+            o2, c2 = opens[i-2], closes[i-2]
+            o3, c3 = opens[i-3], closes[i-3]
+            if (c3 < o3 and c2 > o2 and c1 > o1 and c2 > c3 and c1 > c2
+                    and c < o and o > c1 and c < o3):
                 data.loc[idx[i], 'pattern3c'] = 'Ul3LS'
-
-            is_three_black = c_p3 > o_p3 and c_p2 < o_p2 and c_prev < o_prev
-            is_lower_lows  = c_p2 < c_p3 and c_prev < c_p2
-            is_strike_up   = c > o and o < c_prev and c > o_p3
-            if is_three_black and is_lower_lows and is_strike_up:
+            if (c3 > o3 and c2 < o2 and c1 < o1 and c2 < c3 and c1 < c2
+                    and c > o and o < c1 and c > o3):
                 data.loc[idx[i], 'pattern3c'] = 'Ea3LS'
 
         return data
@@ -313,29 +287,80 @@ class ServiceManager:
         df['midbnd'] = mid.round(2).astype('float32')
         df['ubnd']   = (mid + std_dev * stddev).round(2).astype('float32')
         df['lbnd']   = (mid - std_dev * stddev).round(2).astype('float32')
+        del mid, stddev
         return df
 
-    def calculate_rsi(self, df, period=14):
-        """Calculate RSI and Signal. Operates in-place (no full copy)."""
-        price_change = df['close'].diff()
-        gain = price_change.clip(lower=0)
-        loss = (-price_change).clip(lower=0)
+    # ------------------------------------------------------------------
+    # Private helpers
+    # ------------------------------------------------------------------
 
-        avg_gain = gain.ewm(alpha=1/period, adjust=False).mean()
-        avg_loss = loss.ewm(alpha=1/period, adjust=False).mean()
+    @staticmethod
+    def _attach_dt_cols(df):
+        """Re-attach nmonth/nday/hour/minute from unixtime after a resample."""
+        dt_ny = (
+            pd.to_datetime(df['unixtime'], unit='s')
+            .dt.tz_localize('UTC')
+            .dt.tz_convert('America/New_York')
+        )
+        df['rec_dt'] = dt_ny.dt.date
+        df['nmonth'] = dt_ny.dt.strftime('%m').astype('category')
+        df['nday']   = dt_ny.dt.strftime('%d').astype('category')
+        df['hour']   = dt_ny.dt.strftime('%H').astype('category')
+        df['minute'] = dt_ny.dt.strftime('%M').astype('category')
+        del dt_ny
+        return df
+
+    @staticmethod
+    def _calculate_macd_inplace(df, fast=12, slow=26, signal=9):
+        """MACD in-place; uses float64 for ewm accuracy, stores float32."""
+        close     = df['close'].astype('float64')
+        ema_fast  = close.ewm(span=fast,   adjust=False).mean()
+        ema_slow  = close.ewm(span=slow,   adjust=False).mean()
+        macd_line = ema_fast - ema_slow
+        sig_line  = macd_line.ewm(span=signal, adjust=False).mean()
+
+        df['macd']      = macd_line.round(2).astype('float32')
+        df['msignal']   = sig_line.round(2).astype('float32')
+        df['histogram'] = (macd_line - sig_line).round(2).astype('float32')
+        del close, ema_fast, ema_slow, macd_line, sig_line
+        return df
+
+    # Backward-compat alias
+    def calculate_macd(self, df, fast=12, slow=26, signal=9):
+        return self._calculate_macd_inplace(df, fast, slow, signal)
+
+    @staticmethod
+    def _calculate_rsi_inplace(df, period=14):
+        """RSI + signal + crossover in-place; float32 output."""
+        diff = df['close'].astype('float64').diff()
+        gain = diff.clip(lower=0)
+        loss = (-diff).clip(lower=0)
+        del diff
+
+        alpha    = 1.0 / period
+        avg_gain = gain.ewm(alpha=alpha, adjust=False).mean()
+        avg_loss = loss.ewm(alpha=alpha, adjust=False).mean()
+        del gain, loss
 
         rs  = avg_gain / avg_loss
-        rsi = (100 - (100 / (1 + rs))).round(2).astype('float32')
-        rsignal = rsi.ewm(span=period).mean().round(2).astype('float32')
+        del avg_gain, avg_loss
+
+        rsi     = (100 - (100 / (1 + rs))).round(2).astype('float32')
+        rsignal = rsi.astype('float64').ewm(span=period).mean().round(2).astype('float32')
+        del rs
 
         rsi_prev     = rsi.shift(1)
         rsignal_prev = rsignal.shift(1)
+        bullish      = (rsi > rsignal) & (rsi_prev < rsignal_prev)
+        bearish      = (rsi < rsignal) & (rsi_prev > rsignal_prev)
 
-        bullish = (rsi > rsignal) & (rsi_prev < rsignal_prev)
-        bearish = (rsi < rsignal) & (rsi_prev > rsignal_prev)
-
-        df['rsi']      = rsi
-        df['rsignal']  = rsignal
+        df['rsi']       = rsi
+        df['rsignal']   = rsignal
         df['crossover'] = np.where(bullish, "Bullish", np.where(bearish, "Bearish", "Neutral"))
 
+        del rsi, rsignal, rsi_prev, rsignal_prev, bullish, bearish
         return df
+
+    # Backward-compat alias
+    def calculate_rsi(self, df, period=14):
+        return self._calculate_rsi_inplace(df, period)

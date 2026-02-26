@@ -237,10 +237,11 @@ class csPattern:
         h2 = float(prev2_row.get('histogram', 0))
 
         # Early reversal signals (highest priority)
-        if m > 0 and h > 0 and h < h1 and h1 > h2:       # histogram fading while positive
-            return "Bearish"
-        if m < 0 and h < 0 and h > h1 and h1 > h2:        # histogram recovering while negative
-            return "Bullish"
+        if (last_row['interval'] != '5m'):
+            if m > 0 and h > 0 and h < h1 and h1 > h2:       # histogram fading while positive
+                return "Bearish"
+            if m < 0 and h < 0 and h > h1 and h1 > h2:        # histogram recovering while negative
+                return "Bullish"
 
         # Standard bullish conditions
         if (m > s and m > 0) or (m > s and h > 0) or (h > 0 and h > h1 > h2) or (m > 0 and s > 0 and h > h1 > h2):

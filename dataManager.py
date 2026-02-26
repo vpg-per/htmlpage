@@ -102,8 +102,6 @@ class ServiceManager:
             )
             ep = endPeriod.replace(minute=0, second=0, microsecond=0).timestamp()
             df = df[df['unixtime'] <= ep].copy()
-            df['unixtime'] = df['unixtime'].astype('int32')
-            df = self._attach_dt_cols(df)
 
         elif interval == "4h":
             df  = df[df['minute'].isin({"00"})].copy()
@@ -117,8 +115,6 @@ class ServiceManager:
                 .agg({'unixtime':'first','open':'first','high':'max','low':'min','close':'last'})
                 .dropna()
             )
-            df['unixtime'] = df['unixtime'].astype('int32')
-            df = self._attach_dt_cols(df)
             df['hour'] = df['hour'].cat.rename_categories(lambda x: "17" if x == "18" else x)
 
         # ---- compute indicators in-place (no copy) ----
@@ -161,19 +157,22 @@ class ServiceManager:
             result = data['chart']['result'][0]
             quotes = result['indicators']['quote'][0]
 
-            # int32 timestamps — saves half the memory vs int64
-            ts_arr = np.asarray(result['timestamp'], dtype='int32')
+            # Keep timestamps as int64 for pd.to_datetime — int32 overflows
+            # silently producing NaT, which cascades into NaN for all derived
+            # datetime columns.  Downcast to int32 only AFTER derivation.
+            ts_arr = np.asarray(result['timestamp'], dtype='int64')
 
             df = pd.DataFrame({
                 'unixtime': ts_arr,
-                'open':  np.asarray(quotes['open'],  dtype='float32'),
-                'high':  np.asarray(quotes['high'],  dtype='float32'),
-                'low':   np.asarray(quotes['low'],   dtype='float32'),
-                'close': np.asarray(quotes['close'], dtype='float32'),
+                'open':  np.round(np.asarray(quotes['open'],  dtype='float32'), 2),
+                'high':  np.round(np.asarray(quotes['high'],  dtype='float32'), 2),
+                'low':   np.round(np.asarray(quotes['low'],   dtype='float32'), 2),
+                'close': np.round(np.asarray(quotes['close'], dtype='float32'), 2),
             })
             df.dropna(inplace=True)
+            df.reset_index(drop=True, inplace=True)
 
-            # Build tz-aware index + derived columns in one pass
+            # Derive datetime columns while unixtime is still int64
             ts = (
                 pd.to_datetime(df['unixtime'], unit='s')
                 .dt.tz_localize('UTC')
@@ -182,10 +181,9 @@ class ServiceManager:
             df.index      = ts
             df.index.name = 'timestamp'
             df['rec_dt'] = ts.dt.date.values
-            df['nmonth'] = ts.dt.strftime('%m').astype('category')
-            df['nday']   = ts.dt.strftime('%d').astype('category')
-            df['hour']   = ts.dt.strftime('%H').astype('category')
-            df['minute'] = ts.dt.strftime('%M').astype('category')
+            # Now safe to downcast unixtime to int32
+            df['unixtime'] = df['unixtime'].astype('int32')
+            df = self._attach_dt_cols(df)
             del ts
 
             return df
@@ -296,9 +294,12 @@ class ServiceManager:
 
     @staticmethod
     def _attach_dt_cols(df):
-        """Re-attach nmonth/nday/hour/minute from unixtime after a resample."""
+        """Re-attach nmonth/nday/hour/minute from unixtime after a resample.
+        Must use int64 for pd.to_datetime — int32 overflows and produces NaT.
+        Downcasts unixtime to int32 after derivation to save memory.
+        """
         dt_ny = (
-            pd.to_datetime(df['unixtime'], unit='s')
+            pd.to_datetime(df['unixtime'].astype('int64'), unit='s')
             .dt.tz_localize('UTC')
             .dt.tz_convert('America/New_York')
         )
@@ -307,6 +308,7 @@ class ServiceManager:
         df['nday']   = dt_ny.dt.strftime('%d').astype('category')
         df['hour']   = dt_ny.dt.strftime('%H').astype('category')
         df['minute'] = dt_ny.dt.strftime('%M').astype('category')
+        df['unixtime'] = df['unixtime'].astype('int32')
         del dt_ny
         return df
 

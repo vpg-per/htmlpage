@@ -35,7 +35,7 @@ class csPattern:
             self.data5m['close'].ewm(span=5, adjust=False).mean()
             .round(2).astype('float32')
         )
-        self._trim_to_last_n(self.data5m, 50)   # only recent bars needed
+        self._trim_to_last_n(self.data5m, 25)   # only recent bars needed
 
         # ---- 15m ----
         self.data15m = self.objMgr.GetStockdata_Byinterval(symbol, "15m", indicatorList="macd")

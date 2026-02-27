@@ -167,7 +167,7 @@ class AlertManager:
                     if (cur.rowcount > 0 ):
                         rows = cur.fetchall()
                         for row in rows:
-                            recdata = {"symbol": row['symbol'], "stockprice": row['stockprice'], "cspattern": row['orderyype'],
+                            recdata = {"symbol": row['symbol'], "stockprice": row['stockprice'], "cspattern": row['ordertype'],
                                 "unixtime": row['triggertime'], 'stoploss': row['stoploss'], 'profittarget': row['profittarget'],
                                 'hour': row['hour'], 'minute': row['minute'], 'transstate': row['transstate'], 'updatedTriggerTime': row['updatedtriggertime'] }
 

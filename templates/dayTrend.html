@@ -103,7 +103,7 @@
             row.append($("<td style='background-color:" + intcellcolor + "'>" + rowData["interval"] + "</td>"));
             if (rowData["interval"] == "15m" || rowData["interval"] == "30m")
             {
-                var aptext = "<td style='color:" + (rowData["close"] > rowData["open"] ? "#006400" : (rowData["close"] == rowData["open"] ? "#000000" : "#c30911" )) + "'>" + rowData["open"] + "/" + rowData["close"] ;
+                var aptext = "<td style='color:" + (rowData["close"] > rowData["open"] ? "#006400" : (rowData["close"] == rowData["open"] ? "#000000" : "#c30911" )) + "'>" + parseFloat(rowData["open"]).toFixed(2) + "/" + parseFloat(rowData["close"]).toFixed(2);
                 var patterntext = "";
                 if (rowData["pattern"] != "NA" && rowData["pattern"] != undefined)
                     patterntext = rowData["pattern"];
@@ -114,8 +114,8 @@
                 row.append($(aptext + "</td>"));
             }
             else
-                row.append($("<td style='color:" + (rowData["close"] > rowData["open"] ? "#006400" : (rowData["close"] == rowData["open"] ? "#000000" : "#c30911" )) + "'>" + rowData["open"] + "/" + rowData["close"] + "</td>"));
-            row.append($("<td style='background-color:" + cellcolor + "'>" + rowData["macd"] + "/" + rowData["msignal"] + "</td>"));
+                row.append($("<td style='color:" + (rowData["close"] > rowData["open"] ? "#006400" : (rowData["close"] == rowData["open"] ? "#000000" : "#c30911" )) + "'>" + parseFloat(rowData["open"]).toFixed(2) + "/" + parseFloat(rowData["close"]).toFixed(2) + "</td>"));
+            row.append($("<td style='background-color:" + cellcolor + "'>" + parseFloat(rowData["macd"]).toFixed(2) + "/" + parseFloat(rowData["msignal"]).toFixed(2) + "</td>"));
             
             var cvrcelltext = "";
             var tgtcelltext = "";
@@ -125,7 +125,7 @@
                 cellcolor =  (signalrow["crossover"]  == "Bullish" ? "#006400" : (signalrow["crossover"]  == "Bearish" ? "#c30911" : "#000000" ));
                 if (parseFloat(signalrow["buyval"]) > 0 && parseFloat(signalrow["sellval"]) > 0)
                 {
-                    tgtcelltext = signalrow["buyval"] + "/" + signalrow["sellval"] + "/" + signalrow["stoploss"];
+                    tgtcelltext = parseFloat(signalrow["buyval"]).toFixed(2) + "/" + parseFloat(signalrow["sellval"]).toFixed(2) + "/" + parseFloat(signalrow["stoploss"]).toFixed(2);
                     cvrcelltext =signalrow["hour"] + ":" + signalrow["minute"] ;
                 }
             }
@@ -134,7 +134,7 @@
                 cvrcelltext = "";
                 cellcolor = rowData["crossover"]  == "Bullish" ? "#006400" : (rowData["crossover"]  == "Bearish" ? "#c30911" : "#000000" );
                 if (parseFloat(rowData["buyval"]) > 0 && parseFloat(rowData["sellval"]) > 0)    
-                    tgtcelltext = rowData["buyval"] + "/" + rowData["sellval"] + "/" + rowData["stoploss"];
+                    tgtcelltext = parseFloat(rowData["buyval"]).toFixed(2) + "/" + parseFloat(rowData["sellval"]).toFixed(2) + "/" + parseFloat(rowData["stoploss"]).toFixed(2);
             }
             row.append($("<td style='color:" + cellcolor + "'>" + tgtcelltext + (cvrcelltext.trim().length > 0 ? "&nbsp; [" + cvrcelltext + "]" : "") + "</td>"));
         }

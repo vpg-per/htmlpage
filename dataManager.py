@@ -46,7 +46,6 @@ class ServiceManager:
         del data30m
         gc.collect()
 
-        print(data1h)
         slice1h  = data1h[data1h['nday'] == todayn].tail(4).copy()
         del data1h
         gc.collect()
@@ -129,7 +128,11 @@ class ServiceManager:
         # ---- drop every column we don't need ----
         want = _FINAL_COLS_MACD if "macd" in indicatorList else _FINAL_COLS_RSI
         keep = [c for c in want if c in df.columns]
-        df_sel = df[keep].copy()
+        size = len(df)
+        if size > 4:
+            size = 4
+        df_sel = df[keep].tail(5).copy()
+        print(df_sel)
         del df
         gc.collect()
 

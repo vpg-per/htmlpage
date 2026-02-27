@@ -46,6 +46,7 @@ class ServiceManager:
         del data30m
         gc.collect()
 
+        print(data1h)
         slice1h  = data1h[data1h['nday'] == todayn].tail(4).copy()
         del data1h
         gc.collect()

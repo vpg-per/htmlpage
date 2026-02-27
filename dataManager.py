@@ -101,6 +101,7 @@ class ServiceManager:
                 .dropna()
             )
             ep = endPeriod.replace(minute=0, second=0, microsecond=0).timestamp()
+            df = self._attach_dt_cols(df)
             df = df[df['unixtime'] <= ep].copy()
 
         elif interval == "4h":

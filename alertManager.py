@@ -145,7 +145,7 @@ class AlertManager:
                         rows = cur.fetchall()
                         for row in rows:
                             recdata = {"symbol": row['symbol'], "stockprice": row['stockprice'], "cspattern": row['ordertype'],
-                                "unixtime": row['triggerTime'], 'stoploss': row['stoploss'], 'profittarget': row['profittarget'],
+                                "unixtime": row['triggertime'], 'stoploss': row['stoploss'], 'profittarget': row['profittarget'],
                                 'hour': row['hour'], 'minute': row['minute'], 'transstate': row['transstate'], 'updatedTriggerTime': row['updatedtriggertime'] }
 
                 cur.close()
@@ -167,9 +167,9 @@ class AlertManager:
                     if (cur.rowcount > 0 ):
                         rows = cur.fetchall()
                         for row in rows:
-                            recdata = {"symbol": row['symbol'], "stockprice": row['stockprice'], "cspattern": row['OrderType'],
-                                "unixtime": row['triggerTime'], 'stoploss': row['stoploss'], 'profittarget': row['profittarget'],
-                                'hour': row['hour'], 'minute': row['minute'], 'transstate': row['transstate'], 'updatedTriggerTime': row['updatedTriggerTime'] }
+                            recdata = {"symbol": row['symbol'], "stockprice": row['stockprice'], "cspattern": row['orderyype'],
+                                "unixtime": row['triggertime'], 'stoploss': row['stoploss'], 'profittarget': row['profittarget'],
+                                'hour': row['hour'], 'minute': row['minute'], 'transstate': row['transstate'], 'updatedTriggerTime': row['updatedtriggertime'] }
 
                 cur.close()
             conn.close()
@@ -192,4 +192,5 @@ class AlertManager:
         except psycopg2.Error as e:
             print(f"Error connecting to or querying the database: {e}")
         return
+
 

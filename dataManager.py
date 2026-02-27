@@ -132,7 +132,6 @@ class ServiceManager:
         if size > 4:
             size = 4
         df_sel = df[keep].tail(5).copy()
-        print(df_sel)
         del df
         gc.collect()
 

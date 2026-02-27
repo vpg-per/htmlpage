@@ -105,24 +105,23 @@ class csPattern:
         return None
 
     def _parse_stockdataintervalforOpen(self):
-        if self.data5m is None or self.data5m.empty:
-            return
-        if self.data15m is None or self.data15m.empty:
-            return
-        if len(self.data5m) < 3 or len(self.data15m) < 3:
-            return
+        if self.data5m is None or self.data5m.empty or self.data15m is None or self.data15m.empty or self.data30m is None or self.data30m.empty:
+                return
 
+        self._structure_30m()
         self._structure_15m()
         self._structure_5m()
 
         last_5m  = self.data5m.iloc[-1]
         last_15m = self.data15m.iloc[-1]
+        last_30m = self.data30m.iloc[-1]
 
         macdpattern     = str(last_5m['macdpattern'])
         macdpattern_15m = str(last_15m['macdpattern']) if 'macdpattern' in last_15m.index else "Neutral"
+        macdpattern_30m = str(last_30m['macdpattern']) if 'macdpattern' in last_30m.index else "Neutral"
 
-        # Require 5m AND 15m MACD to agree for a valid alert
-        if macdpattern != macdpattern_15m:
+        # Require 5m, 15m and 30M MACD to agree for a valid alert
+        if macdpattern != macdpattern_15m and macdpattern != macdpattern_30m:
             macdpattern = "Neutral"
 
         stoploss, profittarget = 0.0, 0.0
@@ -149,11 +148,7 @@ class csPattern:
             }
 
     def _parse_stockdataintervalforClose(self):
-        if self.data5m is None or self.data5m.empty:
-            return
-        if self.data15m is None or self.data15m.empty:
-            return
-        if len(self.data5m) < 3 or len(self.data15m) < 3:
+        if self.data5m is None or self.data5m.empty or self.data15m is None or self.data15m.empty:
             return
 
         self._structure_15m()

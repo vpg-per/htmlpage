@@ -115,6 +115,8 @@ class ServiceManager:
                 .agg({'unixtime':'first','open':'first','high':'max','low':'min','close':'last'})
                 .dropna()
             )
+            df = self._attach_dt_cols(df)
+            print(df)
             df['hour'] = df['hour'].cat.rename_categories(lambda x: "17" if x == "18" else x)
 
         # ---- compute indicators in-place (no copy) ----

@@ -52,7 +52,6 @@ class csPattern:
         # ---- signal detection ----
         loadedFromDB = True
         utc_now = datetime.now(timezone.utc)
-        print(f"UTC now: {  utc_now.hour}")
         if self.openorderon5m is None and utc_now.hour <= 20:
             self._parse_stockdataintervalforOpen()
             loadedFromDB = False
@@ -226,28 +225,17 @@ class csPattern:
     @staticmethod
     def _structure_usingInputRows(last_row, prev_row, prev2_row):
         """Classify MACD momentum using three consecutive rows."""
-        m  = float(last_row.get('macd', 0))
-        s  = float(last_row.get('msignal', 0))
-        h  = float(last_row.get('histogram', 0))
-        h1 = float(prev_row.get('histogram', 0))
-        h2 = float(prev2_row.get('histogram', 0))
+        m,s,h  = float(last_row.get('macd', 0)), float(last_row.get('msignal', 0)), float(last_row.get('histogram', 0))
+        h1,h2 = float(prev_row.get('histogram', 0)), float(prev2_row.get('histogram', 0))
 
-        # Early reversal signals (highest priority)
-        if (last_row['interval'] != '5m'):
-            if m > 0 and h > 0 and h < h1 and h1 > h2:       # histogram fading while positive
-                return "Bearish"
-            if m < 0 and h < 0 and h > h1 and h1 > h2:        # histogram recovering while negative
-                return "Bullish"
+		is_expanding_up = h > h1 > h2
+		is_fading_down = h < h1 < h2
 
-        # Standard bullish conditions
-        if (m > s and m > 0) or (m > s and h > 0) or (h > 0 and h > h1 > h2) or (m > 0 and s > 0 and h > h1 > h2):
-            return "Bullish"
-
-        # Standard bearish conditions
-        if ((m < s and m < 0) or (m < s and h < 0) or (h < 0 and h < h1 < h2)
-                or (m < 0 and s < 0 and h < h1 < h2)
-                or (m > 0 and s > 0 and h < h1 and h1 > h2)):
-            return "Bearish"
+		if (m > s and h > 0 and is_expanding_up) or ( m < s and s < 0 and is_expanding_up ):
+			return "Bullish"
+			
+		if ( m < s and is_fading_down):
+			return "Bearish"
 
         return "Neutral"
 

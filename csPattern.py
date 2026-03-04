@@ -52,6 +52,7 @@ class csPattern:
         # ---- signal detection ----
         loadedFromDB = True
         utc_now = datetime.now(timezone.utc)
+        print(f"UTC now: {  utc_now.hour <= 20}")
         if self.openorderon5m is None and utc_now.hour <= 20:
             self._parse_stockdataintervalforOpen()
             loadedFromDB = False

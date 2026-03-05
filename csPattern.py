@@ -228,14 +228,14 @@ class csPattern:
         m,s,h  = float(last_row.get('macd', 0)), float(last_row.get('msignal', 0)), float(last_row.get('histogram', 0))
         h1,h2 = float(prev_row.get('histogram', 0)), float(prev2_row.get('histogram', 0))
 
-		is_expanding_up = h > h1 > h2
-		is_fading_down = h < h1 < h2
+        is_expanding_up = h > h1 > h2
+        is_fading_down = h < h1 < h2
 
-		if (m > s and h > 0 and is_expanding_up) or ( m < s and s < 0 and is_expanding_up ):
-			return "Bullish"
+        if (m > s and h > 0 and is_expanding_up) or ( m < s and s < 0 and is_expanding_up ):
+            return "Bullish"
 			
-		if ( m < s and is_fading_down):
-			return "Bearish"
+        if ( m < s and is_fading_down):
+            return "Bearish"
 
         return "Neutral"
 

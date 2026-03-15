@@ -47,6 +47,11 @@ class csPattern:
         self.data30m = self._identify_candlebreakout_pattern(self.data30m)
         self._trim_to_last_n(self.data30m, 10)
 
+        # ---- 1h ----
+        self.data1h = self.objMgr.GetStockdata_Byinterval(symbol, "1h", indicatorList="macd")
+        self.data1h = self._identify_candlebreakout_pattern(self.data1h)
+        self._trim_to_last_n(self.data1h, 10)
+
         gc.collect()
 
         # ---- signal detection ----
@@ -108,6 +113,7 @@ class csPattern:
         if self.data5m is None or self.data5m.empty or self.data15m is None or self.data15m.empty or self.data30m is None or self.data30m.empty:
                 return
 
+        self._structure_1h()
         self._structure_30m()
         self._structure_15m()
         self._structure_5m()
@@ -115,57 +121,58 @@ class csPattern:
         last_5m  = self.data5m.iloc[-1]
         last_15m = self.data15m.iloc[-1]
         last_30m = self.data30m.iloc[-1]
+        last_1h  = self.data1h.iloc[-1]
 
-        macdpattern     = str(last_5m['macdpattern'])
-        macdpattern_15m = str(last_15m['macdpattern']) if 'macdpattern' in last_15m.index else "Neutral"
+        macdpattern = str(last_15m['macdpattern']) if 'macdpattern' in last_15m.index else "Neutral"
         macdpattern_30m = str(last_30m['macdpattern']) if 'macdpattern' in last_30m.index else "Neutral"
+        macdpattern_1h = str(last_1h['macdpattern']) if 'macdpattern' in last_1h.index else "Neutral"
 
         # Require 5m, 15m and 30M MACD to agree for a valid alert
-        if macdpattern != macdpattern_15m and macdpattern != macdpattern_30m:
+        if macdpattern != macdpattern_1h and macdpattern != macdpattern_30m:
             macdpattern = "Neutral"
 
         stoploss, profittarget = 0.0, 0.0
         if macdpattern == "Bullish":
-            stoploss     = float(last_15m['low'])
-            profittarget = float(last_15m['close'])
+            stoploss     = float(last_1h['low'])
+            profittarget = float(last_1h['close'])
         elif macdpattern == "Bearish":
-            profittarget = float(last_15m['low'])
-            stoploss     = float(last_15m['high'])
+            profittarget = float(last_1h['low'])
+            stoploss     = float(last_1h['high'])
 
         if macdpattern in ("Bullish", "Bearish"):
             self.openorderon5m = {
-                "symbol":            str(last_5m['symbol']),
-                "stockprice":        round(float(last_5m['ema5']), 2),
+                "symbol":            str(last_15m['symbol']),
+                "stockprice":        round(float(last_15m['ema5']), 2),
                 "cspattern":         macdpattern,
-                "cstwopattern":      str(last_5m['cstwopattern']),
-                "csfvgpattern":      str(last_5m['csfvgpattern']),
-                "unixtime":          int(last_5m['unixtime']),
+                "cstwopattern":      str(last_15m['cstwopattern']),
+                "csfvgpattern":      str(last_15m['csfvgpattern']),
+                "unixtime":          int(last_15m['unixtime']),
                 "stoploss":          round(stoploss, 2),
                 "profittarget":      round(profittarget, 2),
-                "hour":              int(last_5m['hour']),
-                "minute":            int(last_5m['minute']),
-                "updatedTriggerTime": int(last_5m['unixtime']),
+                "hour":              int(last_15m['hour']),
+                "minute":            int(last_15m['minute']),
+                "updatedTriggerTime": int(last_15m['unixtime']),
             }
 
     def _parse_stockdataintervalforClose(self):
         if self.data5m is None or self.data5m.empty or self.data15m is None or self.data15m.empty:
             return
 
+        self._structure_30m()
         self._structure_15m()
-        self._structure_5m()
 
-        last_5m  = self.data5m.iloc[-1]
+        last_30m  = self.data30m.iloc[-1]
         last_15m = self.data15m.iloc[-1]
 
-        cur_pattern = str(last_5m['macdpattern'])
+        cur_pattern = str(last_15m['macdpattern'])
 
         if (self.openorderon5m['cspattern'] == cur_pattern or cur_pattern == "Neutral"):
             # Update the open order with fresh time / levels
-            self.openorderon5m['hour']             = int(last_5m['hour'])
-            self.openorderon5m['minute']            = int(last_5m['minute'])
-            self.openorderon5m['updatedTriggerTime'] = int(last_5m['unixtime'])
-            self.openorderon5m['cstwopattern']      = str(last_5m['cstwopattern'])
-            self.openorderon5m['csfvgpattern']      = str(last_5m['csfvgpattern'])
+            self.openorderon5m['hour']             = int(last_15m['hour'])
+            self.openorderon5m['minute']            = int(last_15m['minute'])
+            self.openorderon5m['updatedTriggerTime'] = int(last_15m['unixtime'])
+            self.openorderon5m['cstwopattern']      = str(last_15m['cstwopattern'])
+            self.openorderon5m['csfvgpattern']      = str(last_15m['csfvgpattern'])
             if self.openorderon5m['cspattern'] == "Bullish":
                 self.openorderon5m['profittarget'] = round(float(last_15m['high']), 2)
                 self.openorderon5m['stoploss']     = round(float(last_15m['low']),  2)
@@ -175,14 +182,14 @@ class csPattern:
         else:
             # Pattern has flipped — signal close
             self.closeorderon5m = {
-                "symbol":       str(last_5m['symbol']),
-                "stockprice":   round(float(last_5m['open']), 2),
+                "symbol":       str(last_15m['symbol']),
+                "stockprice":   round(float(last_15m['open']), 2),
                 "cspattern":    cur_pattern,
-                "unixtime":     int(last_5m['unixtime']),
+                "unixtime":     int(last_15m['unixtime']),
                 "stoploss":     "0",
                 "profittarget": "0",
-                "hour":         int(last_5m['hour']),
-                "minute":       int(last_5m['minute']),
+                "hour":         int(last_15m['hour']),
+                "minute":       int(last_15m['minute']),
             }
 
     # ------------------------------------------------------------------
@@ -222,12 +229,27 @@ class csPattern:
             )
         self.data30m.iat[-1, self.data30m.columns.get_loc('macdpattern')] = pattern
 
+    def _structure_1h(self):
+        pattern = self._structure_from_tail(self.data1h)
+        if 'macdpattern' not in self.data1h.columns:
+            self.data1h['macdpattern'] = pd.Categorical(
+                ['Neutral'] * len(self.data1h),
+                categories=['Neutral', 'Bullish', 'Bearish']
+            )
+        self.data1h.iat[-1, self.data1h.columns.get_loc('macdpattern')] = pattern
+
     @staticmethod
     def _structure_usingInputRows(last_row, prev_row, prev2_row):
         """Classify MACD momentum using three consecutive rows."""
         m,s,h  = float(last_row.get('macd', 0)), float(last_row.get('msignal', 0)), float(last_row.get('histogram', 0))
         h1,h2 = float(prev_row.get('histogram', 0)), float(prev2_row.get('histogram', 0))
 
+        if (last_row['interval']=="1h"):
+            if (m > s ):
+                return "Bullish"
+            else:
+                return "Bearish"
+        
         is_expanding_up = h > h1 > h2
         is_fading_down = h < h1 < h2
 

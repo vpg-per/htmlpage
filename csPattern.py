@@ -58,7 +58,7 @@ class csPattern:
         # ---- signal detection ----
         loadedFromDB = True
         utc_now = datetime.now(timezone.utc)
-        if self.openorderon5m is None and utc_now.hour <= 20:
+        if self.openorderon5m is None and utc_now.hour <= 22:
             self._parse_stockdataintervalforOpen()
             loadedFromDB = False
 
@@ -118,41 +118,43 @@ class csPattern:
         self._structure_30m()
         self._structure_15m()
         self._structure_5m()
+        print(self.data5m.tail(10).to_string(index=False))
 
         last_5m  = self.data5m.iloc[-1]
         last_15m = self.data15m.iloc[-1]
         last_30m = self.data30m.iloc[-1]
         last_1h  = self.data1h.iloc[-1]
 
-        macdpattern = str(last_15m['macdpattern']) if 'macdpattern' in last_15m.index else "Neutral"
+        macdpattern = str(last_5m['macdpattern']) if 'macdpattern' in last_5m.index else "Neutral"
+        macdpattern_15m = str(last_15m['macdpattern']) if 'macdpattern' in last_15m.index else "Neutral"
         macdpattern_30m = str(last_30m['macdpattern']) if 'macdpattern' in last_30m.index else "Neutral"
         macdpattern_1h = str(last_1h['macdpattern']) if 'macdpattern' in last_1h.index else "Neutral"
 
         # Require 5m, 15m and 30M MACD to agree for a valid alert
-        if macdpattern != macdpattern_1h and macdpattern != macdpattern_30m:
+        if macdpattern != macdpattern_1h and macdpattern != macdpattern_30m and macdpattern != macdpattern_15m:
             macdpattern = "Neutral"
 
         stoploss, profittarget = 0.0, 0.0
         if macdpattern == "Bullish":
-            stoploss     = float(last_1h['low'])
-            profittarget = float(last_1h['close'])
+            stoploss     = float(last_30m['low'])
+            profittarget = float(last_30m['close'])
         elif macdpattern == "Bearish":
-            profittarget = float(last_1h['low'])
-            stoploss     = float(last_1h['high'])
+            profittarget = float(last_30m['low'])
+            stoploss     = float(last_30m['high'])
 
         if macdpattern in ("Bullish", "Bearish"):
             self.openorderon5m = {
-                "symbol":            str(last_15m['symbol']),
-                "stockprice":        round(float(last_15m['ema5']), 2),
+                "symbol":            str(last_5m['symbol']),
+                "stockprice":        round(float(last_5m['ema5']), 2),
                 "cspattern":         macdpattern,
-                "cstwopattern":      str(last_15m['cstwopattern']),
-                "csfvgpattern":      str(last_15m['csfvgpattern']),
-                "unixtime":          int(last_15m['unixtime']),
+                "cstwopattern":      str(last_5m['cstwopattern']),
+                "csfvgpattern":      str(last_5m['csfvgpattern']),
+                "unixtime":          int(last_5m['unixtime']),
                 "stoploss":          round(stoploss, 2),
                 "profittarget":      round(profittarget, 2),
-                "hour":              int(last_15m['hour']),
-                "minute":            int(last_15m['minute']),
-                "updatedTriggerTime": int(last_15m['unixtime']),
+                "hour":              int(last_5m['hour']),
+                "minute":            int(last_5m['minute']),
+                "updatedTriggerTime": int(last_5m['unixtime']),
             }
 
     def _parse_stockdataintervalforClose(self):
@@ -241,26 +243,107 @@ class csPattern:
 
     @staticmethod
     def _structure_usingInputRows(last_row, prev_row, prev2_row):
-        """Classify MACD momentum using three consecutive rows."""
-        m,s,h  = float(last_row.get('macd', 0)), float(last_row.get('msignal', 0)), float(last_row.get('histogram', 0))
-        h1,h2 = float(prev_row.get('histogram', 0)), float(prev2_row.get('histogram', 0))
-
-        if (last_row['interval']=="1h"):
-            if (m > s ):
-                return "Bullish"
-            else:
-                return "Bearish"
+        histogram = last_row['histogram']
+        noise_threshold = 0.005
         
-        is_expanding_up = h > h1 > h2
-        is_fading_down = h < h1 < h2
+        if abs(histogram) < 0.005:
+            return "Neutral"
 
-        if (m > s and h > 0 and is_expanding_up) or ( m < s and s < 0 and is_expanding_up ):
-            return "Bullish"
-			
-        if ( m < s and is_fading_down):
-            return "Bearish"
+        timeframe = last_row['interval']
+        macd_value = last_row['macd']
+        macd_signal = last_row['msignal']
+        prev_macd = prev_row['macd']
+        prev_signal = prev_row['msignal']
+        prev_histogram = prev_row['histogram']
+        bullish_score = 0
+        bearish_score = 0
+        
+        # ── 2. MACD vs Zero Line ──────────────────────────────────────────────────
+        if macd_value > 0:
+            bullish_score += 1
+        elif macd_value < 0:
+            bearish_score += 1
 
-        return "Neutral"
+        # ── 3. MACD vs Signal Line ────────────────────────────────────────────────
+        gap     = abs(macd_value - macd_signal)
+        min_gap = noise_threshold * 0.5
+        if gap >= min_gap:
+            if macd_value > macd_signal:
+                bullish_score += 2
+            else:
+                bearish_score += 2
+
+        # ── 4. Histogram Polarity ─────────────────────────────────────────────────
+        if histogram > 0:
+            bullish_score += 1
+        else:
+            bearish_score += 1
+
+        # ── 5. Crossover Detection ────────────────────────────────────────────────
+        if prev_macd is not None and prev_signal is not None:
+            bullish_cross = prev_macd <= prev_signal and macd_value > macd_signal
+            bearish_cross = prev_macd >= prev_signal and macd_value < macd_signal
+
+            if bullish_cross:
+                if histogram <= 0:
+                    bullish_score += 1
+                else:
+                    bullish_score += 3
+
+            if bearish_cross:
+                if histogram >= 0:
+                    bearish_score += 1
+                else:
+                    bearish_score += 3
+
+            if prev_macd <= 0 and macd_value > 0:
+                bullish_score += 2
+            elif prev_macd >= 0 and macd_value < 0:
+                bearish_score += 2
+
+        # ── 6. Histogram Momentum ─────────────────────────────────────────────────
+        if prev_histogram is not None:
+            hist_change = histogram - prev_histogram
+            if histogram > 0 and hist_change > 0:
+                bullish_score += 1
+            elif histogram > 0 and hist_change < 0:
+                bearish_score += 1
+            elif histogram < 0 and hist_change < 0:
+                bearish_score += 1
+            elif histogram < 0 and hist_change > 0:
+                bullish_score += 1
+
+            if prev_histogram < 0 and histogram > 0:
+                bullish_score += 2
+            elif prev_histogram > 0 and histogram < 0:
+                bearish_score += 2
+        
+        strong_threshold   = 3
+        moderate_threshold = 2
+        total_score = bullish_score + bearish_score
+        net_score   = bullish_score - bearish_score
+
+        trend = "Neutral"
+        if net_score > strong_threshold:
+            trend = "Bullish"   # "Strong"
+        elif net_score > moderate_threshold:
+            trend = "Bullish"   # "Moderate"
+        elif net_score > 0:
+            trend = "Bullish"  # "Weak"
+        elif net_score == 0:
+            trend = "Neutral"   # "No clear bias"
+        elif net_score >= -moderate_threshold:
+            trend = "Bearish"   # "Moderate"
+        elif net_score >= -strong_threshold:
+            trend = "Bearish"  # Weak
+        elif net_score >= -strong_threshold:
+            trend = "Bearish"   # Moderate
+        else:
+            trend = "Bearish" # Strong
+
+        gc.collect()
+
+        return trend
 
     # ------------------------------------------------------------------
     # Candlestick pattern identification (vectorised where possible)

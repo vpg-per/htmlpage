@@ -40,6 +40,7 @@ class csPattern:
         # ---- 15m ----
         self.data15m = self.objMgr.GetStockdata_Byinterval(symbol, "15m", indicatorList="macd")
         self.data15m = self._identify_candlebreakout_pattern(self.data15m)
+        self.data15m['ema5'] = (self.data15m['close'].ewm(span=5, adjust=False).mean().round(2).astype('float32'))
         self._trim_to_last_n(self.data15m, 20)
 
         # ---- 30m ----

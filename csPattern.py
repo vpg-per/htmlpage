@@ -58,7 +58,7 @@ class csPattern:
         # ---- signal detection ----
         loadedFromDB = True
         utc_now = datetime.now(timezone.utc)
-        if self.openorderon5m is None and utc_now.hour <= 22:
+        if self.openorderon5m is None and utc_now.hour <= 20:
             self._parse_stockdataintervalforOpen()
             loadedFromDB = False
 
@@ -118,22 +118,22 @@ class csPattern:
         self._structure_30m()
         self._structure_15m()
         self._structure_5m()
-        print(self.data5m.tail(10).to_string(index=False))
 
         last_5m  = self.data5m.iloc[-1]
         last_15m = self.data15m.iloc[-1]
         last_30m = self.data30m.iloc[-1]
         last_1h  = self.data1h.iloc[-1]
 
-        macdpattern = str(last_5m['macdpattern']) if 'macdpattern' in last_5m.index else "Neutral"
+        macdpattern = "Neutral" 
+        macdpattern_5m = str(last_5m['macdpattern']) if 'macdpattern' in last_5m.index else "Neutral"
         macdpattern_15m = str(last_15m['macdpattern']) if 'macdpattern' in last_15m.index else "Neutral"
         macdpattern_30m = str(last_30m['macdpattern']) if 'macdpattern' in last_30m.index else "Neutral"
         macdpattern_1h = str(last_1h['macdpattern']) if 'macdpattern' in last_1h.index else "Neutral"
 
         # Require 5m, 15m and 30M MACD to agree for a valid alert
-        if macdpattern != macdpattern_1h and macdpattern != macdpattern_30m and macdpattern != macdpattern_15m:
-            macdpattern = "Neutral"
-
+        if macdpattern_5m == macdpattern_1h and macdpattern_5m == macdpattern_30m and macdpattern_5m == macdpattern_15m:
+            macdpattern = macdpattern_5m
+        
         stoploss, profittarget = 0.0, 0.0
         if macdpattern == "Bullish":
             stoploss     = float(last_30m['low'])
@@ -324,23 +324,14 @@ class csPattern:
         net_score   = bullish_score - bearish_score
 
         trend = "Neutral"
-        if net_score > strong_threshold:
-            trend = "Bullish"   # "Strong"
-        elif net_score > moderate_threshold:
+        if net_score > moderate_threshold:
             trend = "Bullish"   # "Moderate"
-        elif net_score > 0:
-            trend = "Bullish"  # "Weak"
-        elif net_score == 0:
+        elif net_score >= 0:
             trend = "Neutral"   # "No clear bias"
         elif net_score >= -moderate_threshold:
-            trend = "Bearish"   # "Moderate"
-        elif net_score >= -strong_threshold:
-            trend = "Bearish"  # Weak
-        elif net_score >= -strong_threshold:
-            trend = "Bearish"   # Moderate
+            trend = "Neutral"   # "Weak bearish"
         else:
             trend = "Bearish" # Strong
-
         gc.collect()
 
         return trend

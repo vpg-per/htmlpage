@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from time import gmtime, strftime
 from zoneinfo import ZoneInfo
 import os
+import io
 import psycopg2, psycopg2.extras
 
 class AlertManager:
@@ -43,6 +44,19 @@ class AlertManager:
     def send_chart_alert(self, s_message):
         url = f"https://api.telegram.org/bot{self.token}/sendMessage?chat_id={self.chat_id}&text={s_message}"
         return requests.get(url).json()
+    
+    def send_photo_alert(self, image_buffer: io.BytesIO,filename:     str = "sp.png"):
+        image_buffer.seek(0)
+        data  = {"chat_id": self.chat_id, "caption": "Sector performance", "parse_mode": "HTML"}
+        files = {"photo": (filename, image_buffer, "image/png")}        
+        
+        url = f"https://api.telegram.org/bot{self.token}/sendPhoto"
+        resp = requests.post(url, data=data, files=files, timeout=20)
+        resp.raise_for_status()
+        result = resp.json()
+        if result.get("ok"):
+            print(f"[Telegram] ✓ Photo sent successfully " )        
+        return 
 
     def get_message(self):
         return self._message

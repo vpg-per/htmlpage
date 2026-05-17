@@ -12,7 +12,6 @@ from alertManager import AlertManager
 from supresrange import SupportResistanceByInputInterval
 from csPattern import csPattern
 from sectorperformance import SectorPerformance
-from discordnotifier import send_sector_performance
 
 app = Flask(__name__)
 
@@ -163,7 +162,7 @@ def SectorPerformanceGet():
     sectorperf = SectorPerformance()
     df = sectorperf.fetch_sector_data()
     image_buffer = sectorperf.plot_sector_chart(df, out_path="sector_performance.png")
-    send_sector_performance(image_buffer)
+    altMgr.send_photo_alert(image_buffer)
     chart_image_base64 = base64.b64encode(image_buffer.getvalue()).decode('utf-8')
     image_buffer.close()
 

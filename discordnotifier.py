@@ -67,7 +67,6 @@ class DiscordNotifier:
         -------
         bool  True on success, False on any HTTP error.
         """
-        payload  = self._build_payload(df)
         image_buffer.seek(0)
 
         files = {
@@ -78,7 +77,6 @@ class DiscordNotifier:
         try:
             resp = requests.post(
                 self.webhook_url,
-                data=payload,
                 files=files,
                 timeout=15,
             )

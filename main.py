@@ -11,6 +11,8 @@ from dataManager import ServiceManager
 from alertManager import AlertManager
 from supresrange import SupportResistanceByInputInterval
 from csPattern import csPattern
+from sectorperformance import SectorPerformance
+from discordnotifier import send_sector_performance
 
 app = Flask(__name__)
 
@@ -155,6 +157,20 @@ def ScalpPattern():
 
     return render_template('./scalp.html', summary=summary, chart_image=chart_image_base64)
 
+
+@app.route("/sectorPerformance")
+def SectorPerformanceGet():
+    sectorperf = SectorPerformance()
+    df = sectorperf.fetch_sector_data()
+    image_buffer = sectorperf.plot_sector_chart(df, out_path="sector_performance.png")
+    send_sector_performance(image_buffer, df=df)
+    chart_image_base64 = base64.b64encode(image_buffer.getvalue()).decode('utf-8')
+    image_buffer.close()
+
+    del sectorperf, image_buffer
+    gc.collect()
+
+    return render_template('./sectorperformance.html', summary=df, chart_image=chart_image_base64)
 
 @app.route("/bkOutInvoke")
 def BkOutInvoke():

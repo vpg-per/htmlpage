@@ -15,6 +15,7 @@ import time
 import requests
 import numpy  as np
 import pandas as pd
+import yfinance as yf
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -70,22 +71,16 @@ class SectorPerformance:
         records = []
 
         for symbol, sector in self.SECTORS.items():
-            url    = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
-            params = {'range': '2d', 'interval': '1d', 'includePrePost': 'true'}
             try:
-                resp = requests.get(url, params=params, headers=self.HEADERS, timeout=15)
-                resp.raise_for_status()
-                data   = resp.json()
-                result = data['chart']['result'][0]
-                closes = [c for c in result['indicators']['quote'][0]['close']
-                        if c is not None]
+                ticker = yf.Ticker(symbol)
+                data= ticker.history(period="2d")
 
-                if len(closes) < 2:
+                if data.empty:
                     print(f"  {symbol}: not enough data ({len(closes)} bar(s))")
                     continue
 
-                prev = round(float(closes[-2]), 2)
-                curr = round(float(closes[-1]), 2)
+                prev = round(float(data['Close'].iloc[-2]), 2)
+                curr = round(float(data['Close'].iloc[-1]), 2)
                 chg  = round(curr - prev, 2)
                 pct  = round((chg / prev) * 100, 2)
 

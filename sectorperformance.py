@@ -75,7 +75,7 @@ class SectorPerformance:
                 ticker = yf.Ticker(symbol)
                 data= ticker.history(period="2d")
 
-                if data.empty:
+                if (data.empty or len(data) <=1 ):
                     print(f"  {symbol}: not enough data ({len(closes)} bar(s))")
                     continue
 

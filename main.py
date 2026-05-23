@@ -2,19 +2,18 @@ import os
 import base64
 import gc
 from datetime import datetime, timedelta, timezone
-
 import numpy as np
 import pandas as pd
 from flask import Flask, render_template, request
-
 from dataManager import ServiceManager
 from alertManager import AlertManager
 from supresrange import SupportResistanceByInputInterval
 from csPattern import csPattern
 from sectorperformance import SectorPerformance
+from dayTrendAlert import day_trend_alert_bp
 
 app = Flask(__name__)
-
+app.register_blueprint(day_trend_alert_bp)
 # Shared singletons — never store DataFrames on these
 g_message = []
 objMgr = ServiceManager()
@@ -49,7 +48,6 @@ def CandleStickPattern():
         stocksymbols = [s.strip() for s in env_sym.split(",") if s.strip()] or ['SPY']
 
     allsymbols_data = []
-
     for symbol in stocksymbols:
         # Load any existing open order from DB before constructing csPattern
         dbrecval = altMgr.GetStockOrderRecordfromDB(symbol, 'Open')
@@ -161,7 +159,7 @@ def ScalpPattern():
 def SectorPerformanceGet():
     sectorperf = SectorPerformance()
     df = sectorperf.fetch_sector_data()
-    image_buffer = sectorperf.plot_sector_chart(df, out_path="sector_performance.png")
+    image_buffer = sectorperf.plot_sector_chart(df, out_path="sector_performance.png", set_title="Sector Performance")
     altMgr.send_photo_alert(image_buffer)
     chart_image_base64 = base64.b64encode(image_buffer.getvalue()).decode('utf-8')
     image_buffer.close()
@@ -169,7 +167,7 @@ def SectorPerformanceGet():
     del sectorperf, image_buffer
     gc.collect()
 
-    return render_template('./sectorperformance.html', summary=df, chart_image=chart_image_base64)
+    return render_template('./sectorperformance.html', summary=df, page_title="Sector Performance", chart_image=chart_image_base64)
 
 @app.route("/bkOutInvoke")
 def BkOutInvoke():

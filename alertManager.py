@@ -45,9 +45,9 @@ class AlertManager:
         url = f"https://api.telegram.org/bot{self.token}/sendMessage?chat_id={self.chat_id}&text={s_message}"
         return requests.get(url).json()
     
-    def send_photo_alert(self, image_buffer: io.BytesIO,filename:     str = "sp.png"):
+    def send_photo_alert(self, image_buffer: io.BytesIO,filename:     str = "sp.png", set_title = ""):
         image_buffer.seek(0)
-        data  = {"chat_id": self.chat_id, "caption": "Sector performance", "parse_mode": "HTML"}
+        data  = {"chat_id": self.chat_id, "caption": set_title, "parse_mode": "HTML"}
         files = {"photo": (filename, image_buffer, "image/png")}        
         
         url = f"https://api.telegram.org/bot{self.token}/sendPhoto"

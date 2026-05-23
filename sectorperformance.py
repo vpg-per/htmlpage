@@ -141,8 +141,8 @@ class SectorPerformance:
         MONO     = "DejaVu Sans Mono"
 
         n      = len(df)
-        fig_h  = max(5.8, n * 0.62 + 1.8)  # scale height to row count
-        fig, ax = plt.subplots(figsize=(11, fig_h), facecolor=BG)
+        fig_h  = max(3, n * 0.2 + 1)  # scale height to row count
+        fig, ax = plt.subplots(figsize=(6, fig_h), facecolor=BG)
         ax.set_facecolor(CARD_BG)
 
         # y_pos reversed so row 0 (best gainer) appears at top
@@ -179,7 +179,7 @@ class SectorPerformance:
                 f"{row.symbol:<5}"
             )
         ax.set_yticks(y_pos)
-        ax.set_yticklabels(y_labels, fontsize=10.5, color=TEXT_PRI, fontfamily=MONO)
+        ax.set_yticklabels(y_labels, fontsize=8, color=TEXT_PRI, fontfamily=MONO)
         ax.tick_params(axis='y', length=0, pad=10)
 
         # dashed divider: dynamic position between gainers and losers
@@ -221,7 +221,7 @@ class SectorPerformance:
         ax.set_title(
             f"S&P 500 Sector Performance  "
             f"Green:{(df['change_pct'] >= 0).sum()}, Red:{(df['change_pct'] < 0).sum()}",
-            loc='left', pad=14, fontsize=12, fontweight='normal', color=TEXT_PRI)
+            loc='left', pad=14, fontsize=9, fontweight='normal', color=TEXT_PRI)
 
         fig.text(0.99, 0.008, "Source: Yahoo Finance",
                 ha='right', va='bottom', fontsize=7, color=TEXT_SEC, style='italic')

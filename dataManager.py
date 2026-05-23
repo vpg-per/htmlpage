@@ -36,30 +36,34 @@ class ServiceManager:
         data30m = self.GetStockdata_Byinterval(symbol, "30m", indicatorList="macd")
         data1h  = self.GetStockdata_Byinterval(symbol, "1h",  indicatorList="macd")
 
-        data15m  = self.calculate_Buy_Sell_Values(data15m, data30m, 65)
+        #data15m  = self.calculate_Buy_Sell_Values(data15m, data30m, 65)
         slice15  = data15m[data15m['nday'] == todayn].tail(12).copy()
+        slice15 = self.calculate_TrendAlert(slice15)
         del data15m
         gc.collect()
 
-        data30m  = self.calculate_Buy_Sell_Values(data30m, data1h, 125)
+        #data30m  = self.calculate_Buy_Sell_Values(data30m, data1h, 125)
         slice30  = data30m[data30m['nday'] == todayn].tail(8).copy()
+        slice30 = self.calculate_TrendAlert(slice30)
         del data30m
         gc.collect()
 
         slice1h  = data1h[data1h['nday'] == todayn].tail(4).copy()
+        slice1h = self.calculate_TrendAlert(slice1h)
         del data1h
         gc.collect()
 
         # 4h: only last 3 rows, then filter to today/yesterday
         data4h  = self.GetStockdata_Byinterval(symbol, "4h", indicatorList="macd").tail(3)
         slice4h = data4h[(data4h['nday'] == todayn) | (data4h['nday'] == yesterdayn)].copy()
+        slice4h = self.calculate_TrendAlert(slice4h)
         if len(slice4h) == 0:
             slice4h = data4h.copy()
         del data4h
         gc.collect()
 
         df_merged = pd.concat(
-            [df_merged, slice15, slice30, slice1h, slice4h],
+            [df_merged, slice4h, slice1h, slice30, slice15 ],
             ignore_index=True
         )
         del slice15, slice30, slice1h, slice4h
@@ -198,6 +202,33 @@ class ServiceManager:
         except KeyError as e:
             print(f"Error parsing data: {e}")
         return None
+
+    def calculate_TrendAlert(self, dfcur):
+        dfcur['crossover'] = '0'
+        if dfcur is None or dfcur.empty or len(dfcur) < 2:
+            return dfcur
+        
+        bullish_score = 0
+        bearish_score = 0
+        last_row, last_but_second_row = dfcur.iloc[-1], dfcur.iloc[-2]
+        if (last_row['macd'] > 0 and last_row['msignal'] > 0):
+            bullish_score += 1
+        elif (last_row['macd'] < 0 and last_row['msignal'] < 0):
+            bearish_score += 1
+
+        if (last_row['histogram'] > 0.1):
+            bullish_score += 1
+        elif (last_row['histogram'] < -0.1):
+            bearish_score += 1
+
+        if (last_row['macd'] > last_but_second_row['macd']):
+            bullish_score += 1
+        elif (last_row['macd'] < last_but_second_row['macd']):
+            bearish_score += 1
+
+        dfcur.loc[dfcur.index[-1], 'crossover'] = bullish_score-bearish_score
+        return dfcur
+
 
     def calculate_Buy_Sell_Values(self, dfcur, dfhtf, lookupmins):
         dfcur = dfcur.copy()

@@ -100,7 +100,7 @@ class ServiceManager:
 
         elif interval == "1h":
             df = (
-                df.resample('1h', origin='05:00:00-04:00')
+                df.resample('1h', origin='epoch')
                 .agg({'unixtime':'first','open':'first','high':'max','low':'min','close':'last'})
                 .dropna()
             )
@@ -116,12 +116,11 @@ class ServiceManager:
             ).timestamp() - 1
             df = df[df['unixtime'] <= ep].copy()
             df = (
-                df.resample('4h', origin='05:00:00-04:00', closed='right', label='right')
+                df.resample('4h', origin='epoch',offset='3h', closed='right', label='right')
                 .agg({'unixtime':'first','open':'first','high':'max','low':'min','close':'last'})
                 .dropna()
             )
             df = self._attach_dt_cols(df)
-            df['hour'] = df['hour'].cat.rename_categories(lambda x: "17" if x == "18" else x)
 
         # ---- compute indicators in-place (no copy) ----
         if "macd" in indicatorList:

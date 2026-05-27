@@ -159,7 +159,7 @@ def ScalpPattern():
 def SectorPerformanceGet():
     sectorperf = SectorPerformance()
     df = sectorperf.fetch_sector_data()
-    image_buffer = sectorperf.plot_sector_chart(df, out_path="sector_performance.png", set_title="Sector Performance")
+    image_buffer = sectorperf.plot_sector_chart(df, out_path="sector_performance.png")
     altMgr.send_photo_alert(image_buffer)
     chart_image_base64 = base64.b64encode(image_buffer.getvalue()).decode('utf-8')
     image_buffer.close()

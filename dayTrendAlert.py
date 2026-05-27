@@ -98,17 +98,17 @@ def _build_image(symbol: str, df) -> BytesIO:
     cell_text = []
     for _, row in display_df.iterrows():
         trendval = ""
-        if row['crossover'] == 3:
+        if row['crossover'] == "3":
             trendval = "-strong bullish"
-        elif row['crossover'] == 2:
+        elif row['crossover'] == "2":
             trendval = "-moderate bullish"
-        elif row['crossover'] == 1:
+        elif row['crossover'] == "1":
             trendval = "-weak bullish"
-        elif row['crossover'] == -1:
+        elif row['crossover'] == "-1":
             trendval = "-weak bearish"
-        elif row['crossover'] == -2:
+        elif row['crossover'] == "-2":
             trendval = "-moderate bearish"
-        elif row['crossover'] == -3:
+        elif row['crossover'] == "-3":
             trendval = "-strong bearish"
         cell_text.append([
             f"{str(row['hour'])}:{str(row['minute'])}",

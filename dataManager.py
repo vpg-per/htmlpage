@@ -226,7 +226,7 @@ class ServiceManager:
         elif (last_row['macd'] < last_but_second_row['macd']):
             bearish_score += 1
 
-        dfcur.loc[dfcur.index[-1], 'crossover'] = bullish_score-bearish_score
+        dfcur.loc[dfcur.index[-1], 'crossover'] = str(bullish_score-bearish_score)
         return dfcur
 
 

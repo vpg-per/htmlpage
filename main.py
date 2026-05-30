@@ -164,10 +164,10 @@ def SectorPerformanceGet():
     chart_image_base64 = base64.b64encode(image_buffer.getvalue()).decode('utf-8')
     image_buffer.close()
 
-    del sectorperf, image_buffer
+    del sectorperf, image_buffer, df
     gc.collect()
 
-    return render_template('./sectorperformance.html', summary=df, page_title="Sector Performance", chart_image=chart_image_base64)
+    return render_template('./sectorperformance.html', page_title="Sector Performance", chart_image=chart_image_base64)
 
 @app.route("/bkOutInvoke")
 def BkOutInvoke():

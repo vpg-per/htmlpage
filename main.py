@@ -11,9 +11,12 @@ from supresrange import SupportResistanceByInputInterval
 from csPattern import csPattern
 from sectorperformance import SectorPerformance
 from dayTrendAlert import day_trend_alert_bp
+from stockAnalysis import stock_analysis_bp
+
 
 app = Flask(__name__)
 app.register_blueprint(day_trend_alert_bp)
+app.register_blueprint(stock_analysis_bp)
 # Shared singletons — never store DataFrames on these
 g_message = []
 objMgr = ServiceManager()
@@ -36,7 +39,7 @@ def process_stocksignal(symbol="SPY"):
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
-
+# This route is referred as auto buysell indicator
 @app.route("/csPattern")
 def CandleStickPattern():
     # Parse symbol list
@@ -108,6 +111,7 @@ def CandleStickPattern():
     return resultdata if resultdata else "done!"
 
 
+# This route is indicated as pre market pattern usually executes before 9AM
 @app.route("/marketPattern")
 def marketPattern():
     stocksymbols    = ['NQ%3DF', 'RTY%3DF', 'GC%3DF']
@@ -154,7 +158,7 @@ def ScalpPattern():
 
     return render_template('./scalp.html', summary=summary, chart_image=chart_image_base64)
 
-
+# This route is used for showing the sector behavior
 @app.route("/sectorPerformance")
 def SectorPerformanceGet():
     sectorperf = SectorPerformance()

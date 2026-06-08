@@ -221,7 +221,7 @@ def _build_chart(today_df: pd.DataFrame, levels: dict, symbol: str) :
     df = today_df.copy().reset_index()
     n  = len(df)
     if n == 0:
-        return ""
+        return None
 
     # .tail(1) returns a DataFrame; use .iloc[0] to get a scalar for comparisons
     last_crossover = str(df['crossover'].iloc[-1]) if 'crossover' in df.columns else ""
@@ -535,12 +535,16 @@ def stock_analysis():
 
         # 7. Build chart image
         image_buffer = _build_chart(today_df, levels, symbol)
-        altMgr = AlertManager()
-        altMgr.send_photo_alert(image_buffer)
-        chart_b64 = base64.b64encode(image_buffer.getvalue()).decode('utf-8')
-        image_buffer.close()
-        
-        del altMgr, raw_df, indicator_df, today_df, image_buffer
+        chart_b64 = ""
+        if image_buffer is not None:
+            altMgr = AlertManager()
+            altMgr.send_photo_alert(image_buffer)
+            image_buffer.seek(0)
+            chart_b64 = base64.b64encode(image_buffer.getvalue()).decode('utf-8')
+            image_buffer.close()
+            del altMgr, image_buffer
+
+        del raw_df, indicator_df, today_df
         gc.collect()
 
         return render_template_string(

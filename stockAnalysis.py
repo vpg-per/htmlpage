@@ -32,7 +32,8 @@ import numpy  as np
 import pandas as pd
 import requests
 import yfinance as yf
-
+from ta.momentum import RSIIndicator
+from ta.trend import MACD
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -192,9 +193,19 @@ def _derive_levels(df: pd.DataFrame, today: date, yesterday: date):
 
 def _compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
     """Add macd, msignal, histogram, rsi columns in-place (reuses ServiceManager statics)."""
-    df = ServiceManager._calculate_macd_inplace(df)
-    df = ServiceManager._calculate_rsi_inplace(df)
+    
+    macd_indicator = MACD(close=df['close'], window_slow=26, window_fast=12, window_sign=9)
+    df['macd'] = macd_indicator.macd().round(2).astype('float32')           
+    df['msignal'] = macd_indicator.macd_signal().round(2).astype('float32') 
+    df['histogram'] = macd_indicator.macd_diff().round(2).astype('float32')
+
+    rsi_indicator = RSIIndicator(close=df['close'], window=14)
+    df['rsi'] = rsi_indicator.rsi().round(2).astype('float32')
+    rsignal = df['rsi'].astype('float64').ewm(span=14).mean().round(2).astype('float32')
+    df['rsignal']   = rsignal
     df = _objMgr.calculate_TrendAlert(df)
+    df = _objMgr.calculate_RSITrendAlert(df)
+    del rsi_indicator, rsignal, macd_indicator
     return df
 
 
@@ -217,6 +228,9 @@ def _build_chart(today_df: pd.DataFrame, levels: dict, symbol: str) :
     TEXT    = "#e6edf3"
     GRID    = "#21262d"
     MONO    = "DejaVu Sans Mono"
+    WHITE   = "#fff"
+    GRAY    = "#8b949e"
+
 
     df = today_df.copy().reset_index()
     n  = len(df)
@@ -225,14 +239,15 @@ def _build_chart(today_df: pd.DataFrame, levels: dict, symbol: str) :
 
     # .tail(1) returns a DataFrame; use .iloc[0] to get a scalar for comparisons
     last_crossover = str(df['crossover'].iloc[-1]) if 'crossover' in df.columns else ""
-    trendval = {
+    macdtrendval = {
         "3":  "-strong bullish",
         "2":  "-moderate bullish",
         "1":  "-weak bullish",
         "-1": "-weak bearish",
         "-2": "-moderate bearish",
         "-3": "-strong bearish",
-    }.get(last_crossover, "")
+    }.get(last_crossover, "neutral")
+    rsistrendval = df['rsicrossover'].iloc[-1]
     xs = np.arange(n)
 
     fig, (ax_candle, ax_macd, ax_rsi) = plt.subplots(
@@ -280,7 +295,7 @@ def _build_chart(today_df: pd.DataFrame, levels: dict, symbol: str) :
                 Line2D([0], [0], color=color, ls=ls, lw=lw, label=label)
             )
 
-    ax_candle.set_title(f"{symbol} — 15m Candlestick (MACD trend: {trendval})",
+    ax_candle.set_title(f"{symbol} — 15m Candlestick (MACD trend: {macdtrendval}, RSI trend: {rsistrendval})",
                         color=TEXT, fontsize=11, fontweight='bold', loc='left', pad=10)
     ax_candle.set_ylabel('Price', color=TEXT, fontsize=9)
     ax_candle.set_xlim(-0.8, n - 0.2)
@@ -318,7 +333,9 @@ def _build_chart(today_df: pd.DataFrame, levels: dict, symbol: str) :
     if 'rsi' in df.columns:
         rsi_vals = df['rsi'].astype(float)
         ax_rsi.plot(xs, rsi_vals, color='#29B6F6', lw=1.2, zorder=4)
+        ax_rsi.plot(xs, df['rsignal'].astype(float), color='#FFC107', lw=1.0, label='Signal', zorder=4)
         ax_rsi.axhline(70, color=RED,   lw=0.8, ls='--', alpha=0.7)
+        ax_rsi.axhline(50, color=WHITE, lw=0.8, ls='--', alpha=0.7)
         ax_rsi.axhline(30, color=GREEN, lw=0.8, ls='--', alpha=0.7)
         ax_rsi.set_ylim(0, 100)
         ax_rsi.set_ylabel('RSI', color=TEXT, fontsize=8)

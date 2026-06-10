@@ -228,6 +228,62 @@ class ServiceManager:
         dfcur.loc[dfcur.index[-1], 'crossover'] = str(bullish_score-bearish_score)
         return dfcur
 
+    def calculate_RSITrendAlert(self, dfcur):
+        dfcur['rsicrossover'] = '0'
+        if dfcur is None or dfcur.empty or len(dfcur) < 2:
+            return dfcur
+        
+        bullish_score = 0
+        bearish_score = 0
+        last_row, last_but_second_row = dfcur.iloc[-1], dfcur.iloc[-2]
+        
+        score = 0.0
+    
+        # 1. RSI Level (strongest weight)
+        if last_row['rsi'] < 30:
+            score += 40      # Strongly oversold
+        elif last_row['rsi'] < 40:
+            score += 20
+        elif last_row['rsi'] > 70:
+            score -= 40      # Overbought
+        elif last_row['rsi'] > 60:
+            score -= 20
+            
+        # 2. RSI vs RSI_SMA (momentum)
+        if last_row['rsi'] > last_row['rsignal']:
+            score += 25
+        else:
+            score -= 25
+        
+        # 3. RSI crossing RSI_SMA
+        if last_but_second_row['rsi'] < last_row['rsignal'] and last_row['rsi'] > last_row['rsignal']:
+            score += 15   # Bullish crossover
+        elif last_but_second_row['rsi'] > last_row['rsignal'] and last_row['rsi'] < last_row['rsignal']:
+            score -= 15   # Bearish crossover
+            
+        # 4. RSI around 50 midline
+        if 50 < last_row['rsi'] < 60:
+            score += 10
+        elif 40 < last_row['rsi'] < 50:
+            score -= 10
+        
+        # Clamp score
+        score = max(min(score, 100), -100)
+        
+        # Interpretation
+        if score >= 50:
+            bias = "strong bullish"
+        elif score >= 20:
+            bias = "bullish"
+        elif score <= -50:
+            bias = "strong bearish"
+        elif score <= -20:
+            bias = "bearish"
+        else:
+            bias = "neutral"
+
+        dfcur.loc[dfcur.index[-1], 'rsicrossover'] = bias
+        return dfcur
 
     def calculate_Buy_Sell_Values(self, dfcur, dfhtf, lookupmins):
         dfcur = dfcur.copy()

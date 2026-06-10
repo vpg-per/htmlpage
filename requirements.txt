@@ -1,3 +1,4 @@
+#pip install -r requirements.txt
 Flask
 pandas
 numpy
@@ -7,3 +8,4 @@ gunicorn
 psycopg2
 python-dotenv
 scipy
+ta

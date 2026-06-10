@@ -59,6 +59,7 @@ _objMgr = ServiceManager()
 
 ET = ZoneInfo('America/New_York')
 
+
 # ---------------------------------------------------------------------------
 # Helper — raw 15 m fetch with pre/post market
 # ---------------------------------------------------------------------------
@@ -247,7 +248,7 @@ def _build_chart(today_df: pd.DataFrame, levels: dict, symbol: str) :
         "-2": "-moderate bearish",
         "-3": "-strong bearish",
     }.get(last_crossover, "neutral")
-    rsistrendval = df['rsicrossover'].iloc[-1]
+    rsitrendval = df['rsicrossover'].iloc[-1]
     xs = np.arange(n)
 
     fig, (ax_candle, ax_macd, ax_rsi) = plt.subplots(
@@ -295,7 +296,7 @@ def _build_chart(today_df: pd.DataFrame, levels: dict, symbol: str) :
                 Line2D([0], [0], color=color, ls=ls, lw=lw, label=label)
             )
 
-    ax_candle.set_title(f"{symbol} — 15m Candlestick (MACD trend: {macdtrendval}, RSI trend: {rsistrendval})",
+    ax_candle.set_title(f"{symbol} — 15m Candlestick (MACD trend: {macdtrendval}, RSI trend: {rsitrendval})",
                         color=TEXT, fontsize=11, fontweight='bold', loc='left', pad=10)
     ax_candle.set_ylabel('Price', color=TEXT, fontsize=9)
     ax_candle.set_xlim(-0.8, n - 0.2)
@@ -351,8 +352,7 @@ def _build_chart(today_df: pd.DataFrame, levels: dict, symbol: str) :
                 facecolor=BG, edgecolor='none')
     plt.close(fig)
     buf.seek(0)
-    return buf
-
+    return buf, rsitrendval, macdtrendval
 
 # ---------------------------------------------------------------------------
 # Inline HTML template
@@ -551,15 +551,18 @@ def stock_analysis():
         today_df = indicator_df[(indicator_df['rec_dt'] == today) & (indicator_df['hour'] >= 8)].copy()
 
         # 7. Build chart image
-        image_buffer = _build_chart(today_df, levels, symbol)
+        result = _build_chart(today_df, levels, symbol)
         chart_b64 = ""
-        if image_buffer is not None:
+        if result is not None:
+          image_buffer, rsitrendval, macdtrendval = result
+          if ( "bullish" in rsitrendval or "bullish" in macdtrendval or "bearish" in macdtrendval or "bearish" in rsitrendval):
             altMgr = AlertManager()
             altMgr.send_photo_alert(image_buffer)
-            image_buffer.seek(0)
-            chart_b64 = base64.b64encode(image_buffer.getvalue()).decode('utf-8')
-            image_buffer.close()
-            del altMgr, image_buffer
+            del altMgr
+          image_buffer.seek(0)
+          chart_b64 = base64.b64encode(image_buffer.getvalue()).decode('utf-8')
+          image_buffer.close()
+          del image_buffer
 
         del raw_df, indicator_df, today_df
         gc.collect()

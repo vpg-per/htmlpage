@@ -56,21 +56,23 @@ from dataManager import ServiceManager
 stock_analysis_bp = Blueprint('stock_analysis', __name__)
 
 _objMgr = ServiceManager()
-
 ET = ZoneInfo('America/New_York')
-
+inputinterval = '15m'
 
 # ---------------------------------------------------------------------------
 # Helper — raw 15 m fetch with pre/post market
 # ---------------------------------------------------------------------------
 
-def _fetch_15m_raw(symbol: str, days: int = 5) -> pd.DataFrame:
+def _fetch_15m_raw(symbol: str, interval:str = '15m', days: int = 5) -> pd.DataFrame:
     """
     Downloads 15-minute bars (including pre/post market) for the last `days`
     calendar days from Yahoo Finance v8.  Returns a DataFrame with a
     tz-aware (America/New_York) DatetimeIndex and columns:
         unixtime, open, high, low, close, rec_dt, hour, minute
     """
+    global inputinterval
+    inputinterval = interval
+
     end_ts   = int(datetime.now(timezone.utc).timestamp())
     start_ts = int((datetime.now(timezone.utc) - timedelta(days=days)).timestamp())
 
@@ -78,7 +80,7 @@ def _fetch_15m_raw(symbol: str, days: int = 5) -> pd.DataFrame:
     params = {
         'period1':        start_ts,
         'period2':        end_ts,
-        'interval':       '15m',
+        'interval':       interval,
         'includePrePost': 'true',
     }
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
@@ -296,7 +298,7 @@ def _build_chart(today_df: pd.DataFrame, levels: dict, symbol: str) :
                 Line2D([0], [0], color=color, ls=ls, lw=lw, label=label)
             )
 
-    ax_candle.set_title(f"{symbol} — 15m Candlestick (MACD trend: {macdtrendval}, RSI trend: {rsitrendval})",
+    ax_candle.set_title(f"{symbol} — {inputinterval} Candlestick (MACD trend: {macdtrendval}, RSI trend: {rsitrendval})",
                         color=TEXT, fontsize=11, fontweight='bold', loc='left', pad=10)
     ax_candle.set_ylabel('Price', color=TEXT, fontsize=9)
     ax_candle.set_xlim(-0.8, n - 0.2)
@@ -548,7 +550,7 @@ def stock_analysis():
         indicator_df = _compute_indicators(indicator_df)
 
         # 6. Last trading day's bars — for chart + table
-        today_df = indicator_df[(indicator_df['rec_dt'] == today) & (indicator_df['hour'] >= 8)].copy()
+        today_df = indicator_df[(indicator_df['rec_dt'] == today) & (indicator_df['hour'] >= 7)].copy()
 
         # 7. Build chart image
         result = _build_chart(today_df, levels, symbol)

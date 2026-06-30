@@ -109,12 +109,15 @@ class AlertManager:
             
             lookupts = int((datetime.now()- timedelta(hours=8)).timestamp())
             delete_sql1 = f"DELETE FROM stockorder WHERE CAST(triggerTime AS INTEGER) < {lookupts};"
+            
+            delete_sql2 = "DELETE FROM mtfstockalert WHERE \"recorddate\" like %s;"
             with psycopg2.connect(conn_string) as conn:
                 with conn.cursor() as cur:
                     cur.execute(delete_sql, (dttimeval,))
                 
                 with conn.cursor() as cur1:
                     cur1.execute(delete_sql1)
+                    cur1.execute(delete_sql2, (dttimeval,))
         
         except psycopg2.Error as e:
             print(f"Error connecting to or querying the database: {e}")

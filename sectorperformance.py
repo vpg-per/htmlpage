@@ -212,11 +212,32 @@ class SectorPerformance:
         for spine in ax.spines.values():
             spine.set_visible(False)
 
+        riskon = riskoff = 0
+        if ((df['symbol'] == 'XLK') & (df['change_pct'] > 0)).any():
+            riskon += 1
+        if ((df['symbol'] == 'XLY') & (df['change_pct'] > 0)).any():   # Consumer Discretionary
+            riskon += 1
+        if ((df['symbol'] == 'XLI') & (df['change_pct'] > 0)).any():
+            riskon += 1
+        #if ((df['symbol'] == 'XLF') & (df['change_pct'] > 0)).any():
+        #    riskon += 1
+
+        if ((df['symbol'] == 'XLU') & (df['change_pct'] > 0)).any():
+            riskoff += 1
+        if ((df['symbol'] == 'XLP') & (df['change_pct'] > 0)).any():
+            riskoff += 1
+        if ((df['symbol'] == 'XLV') & (df['change_pct'] > 0)).any():
+            riskoff += 1
+        #if ((df['symbol'] == 'XLE') & (df['change_pct'] > 0)).any():
+        #    riskon += 1
+        riskvalue = "On" if riskon > riskoff else ("NA" if riskon == riskoff else "Off")
+
         # title
         ax.set_title(
             f"S&P 500 Sector Performance  "
+            f" Risk: {riskvalue}  "
             f"Green:{(df['change_pct'] >= 0).sum()}, Red:{(df['change_pct'] < 0).sum()}",
-            loc='left', pad=14, fontsize=9, fontweight='normal', color=TEXT_PRI)
+            loc='left', pad=14, fontsize=8, fontweight='normal', color=TEXT_PRI)
 
         fig.text(0.99, 0.008, "Source: Yahoo Finance",
                 ha='right', va='bottom', fontsize=7, color=TEXT_SEC, style='italic')

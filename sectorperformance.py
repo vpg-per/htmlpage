@@ -157,6 +157,8 @@ class SectorPerformance:
         TEXT_SEC = "#8b949e"
         DIVIDER  = "#30363d"
         GRID     = "#21262d"
+        PURPLE   = "#BF40BF"
+        BLUE     = "#58a6ff"
         MONO     = "DejaVu Sans Mono"
 
         n      = len(df)
@@ -190,11 +192,17 @@ class SectorPerformance:
                     color=GREEN if val >= 0 else RED,
                     fontfamily=MONO, zorder=5)
 
-        # y-axis labels
+        LABEL_COLORS = {"XLY": PURPLE, "XLV": BLUE,"XLK": PURPLE, "XLP": BLUE,"XLI": PURPLE, "XLU": BLUE}
+
         y_labels = [f"{row.symbol:<5}" for row in df.itertuples()]
+        symbols  = [row.symbol for row in df.itertuples()]
         ax.set_yticks(y_pos)
         ax.set_yticklabels(y_labels, fontsize=8, color=TEXT_PRI, fontfamily=MONO)
         ax.tick_params(axis='y', length=0, pad=10)
+
+        # override colors for specific sector labels (XLY = yellow, XLV = blue)
+        for tick_label, sym in zip(ax.get_yticklabels(), symbols):
+            tick_label.set_color(LABEL_COLORS.get(sym, TEXT_PRI))
 
         # dashed divider: dynamic position between gainers and losers
         n_gainers = int((df['change_pct'] >= 0).sum())
@@ -232,15 +240,41 @@ class SectorPerformance:
         #    riskon += 1
         riskvalue = "On" if riskon > riskoff else ("NA" if riskon == riskoff else "Off")
 
-        # title
-        ax.set_title(
-            f"S&P 500 Sector Performance  "
-            f" Risk: {riskvalue}  "
-            f"Green:{(df['change_pct'] >= 0).sum()}, Red:{(df['change_pct'] < 0).sum()}",
-            loc='left', pad=14, fontsize=8, fontweight='normal', color=TEXT_PRI)
+        if riskvalue == "On":
+            risk_color = PURPLE
+        elif riskvalue == "Off":
+            risk_color = BLUE
+        else:
+            risk_color = TEXT_PRI
 
-        fig.text(0.99, 0.008, "Source: Yahoo Finance",
-                ha='right', va='bottom', fontsize=7, color=TEXT_SEC, style='italic')
+        green_count = int((df['change_pct'] > 0).sum())
+        red_count   = int((df['change_pct'] < 0).sum())
+
+        title_segments = [
+            ("S&P 500 Sector Performance  ", TEXT_PRI),
+            (" Risk: ", TEXT_PRI),
+            (riskvalue, risk_color),
+            ("  Status:", TEXT_PRI),
+            (str(green_count), GREEN),
+            (", ", TEXT_PRI),
+            (str(red_count), RED),
+        ]
+
+        # reserve title space/position, then overlay colored segments at that anchor
+        title_obj = ax.set_title(' ', loc='left', pad=14, fontsize=8, fontweight='normal')
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+        title_transform = title_obj.get_transform()
+        x0, y0 = title_obj.get_position()
+
+        x = x0
+        for text, color in title_segments:
+            t = ax.text(x, y0, text, transform=title_transform, fontsize=8,
+                        fontweight='normal', color=color,
+                        va=title_obj.get_va(), ha='left')
+            fig.canvas.draw()
+            bbox_axes = t.get_window_extent(renderer=renderer).transformed(title_transform.inverted())
+            x = bbox_axes.x1
 
         plt.tight_layout(rect=[0, 0.01, 0.93, 1])
         buf = io.BytesIO()

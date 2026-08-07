@@ -17,10 +17,23 @@
     </style>
 </head>
 <body>    
+    <div>
     <div class="container">
         <div class="chart">
             <h5>{{page_title}} chart</h5>
             <img src="data:image/png;base64,{{ chart_image }}" >
+        </div>
+    </div>
+        <br/><br/>
+        <div>
+            <table>
+                <tr><th>Cycle-phases</th><th>Sectors</th></tr>
+                <tr><td>Early expansion</td><td>XLK, XLY, XLF</td></tr>
+                <tr><td>Mid expansion</td><td>XLI, XLK, XLV</td></tr>
+                <tr><td>Late expansion</td><td>XLE, XLB</td></tr>
+                <tr><td>Contraction</td><td>XLU, XLP, XLV, XLRE</td></tr>
+                <tr><td>Not-in-phase</td><td>XLC</td></tr>
+            </table>
         </div>
     </div>
 </body>

@@ -133,16 +133,21 @@ class csPattern:
         # Require 5m, 15m and 30M MACD to agree for a valid alert
         if macdpattern_5m == macdpattern_1h and macdpattern_5m == macdpattern_30m and macdpattern_5m == macdpattern_15m:
             macdpattern = macdpattern_5m
-        
+
+        isgoodprofittarget = False
         stoploss, profittarget = 0.0, 0.0
         if macdpattern == "Bullish":
             stoploss     = float(last_30m['low'])
             profittarget = float(last_30m['close'])
+            if float(last_5m['close']) - stoploss < 0.45 and profittarget - float(last_5m['close']) > 0.99 :
+                isgoodprofittarget = True
         elif macdpattern == "Bearish":
             profittarget = float(last_30m['low'])
-            stoploss     = float(last_30m['high'])
+            stoploss     = float(last_30m['high'])            
+            if stoploss - float(last_5m['close']) < 0.45 and float(last_5m['close']) - profittarget > 0.99 :
+                isgoodprofittarget = True
 
-        if macdpattern in ("Bullish", "Bearish"):
+        if macdpattern in ("Bullish", "Bearish") and isgoodprofittarget == True:
             self.openorderon5m = {
                 "symbol":            str(last_5m['symbol']),
                 "stockprice":        round(float(last_5m['ema5']), 2),

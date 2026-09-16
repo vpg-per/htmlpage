@@ -196,6 +196,36 @@ class AlertManager:
         except psycopg2.Error as e:
             print(f"Error connecting to or querying the database: {e}")
 
+    def GetSectorChartFromDB(self, chart_table="sectorchart"):
+        """Retrieve the sector-performance chart PNG saved to the DB by
+        ChartDBManager.save_chart() (table "sectorchart", one row kept at
+        a time) and return it as an in-memory io.BytesIO buffer -- the
+        same shape plot_sector_chart()/send_photo_alert() expect, so it
+        can be dropped straight into the existing
+        image_buffer -> send_photo_alert() / base64.b64encode(image_buffer.getvalue())
+        flow. Returns None if no row is found or on a DB error.
+        """
+        conn_string = os.getenv("DATABASE_URL")
+        conn = None
+        try:
+            with psycopg2.connect(conn_string) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        f'SELECT "chartImage" FROM {chart_table} ORDER BY "createdAt" DESC LIMIT 1;'
+                    )
+                    row = cur.fetchone()
+                    if row is None or row[0] is None:
+                        return None
+                    png_bytes = bytes(row[0])
+
+            image_buffer = io.BytesIO(png_bytes)
+            image_buffer.seek(0)
+            return image_buffer
+
+        except psycopg2.Error as e:
+            print(f"Error connecting to or querying the database: {e}")
+            return None
+
     def AddCloseStockOrderRecordtoDB(self, row):
         conn_string = os.getenv("DATABASE_URL")
         conn = None
@@ -209,5 +239,3 @@ class AlertManager:
         except psycopg2.Error as e:
             print(f"Error connecting to or querying the database: {e}")
         return
-
-

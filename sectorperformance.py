@@ -35,7 +35,7 @@ def refresh_sector_chart():
     else:
         print(f"Failed ({resp.status_code}): {resp.text}")
     
-    time.sleep(25)
+    time.sleep(30)
     return
 	
 	

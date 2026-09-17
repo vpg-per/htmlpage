@@ -9,7 +9,7 @@ from dataManager import ServiceManager
 from alertManager import AlertManager
 from supresrange import SupportResistanceByInputInterval
 from csPattern import csPattern
-from sectorperformance import SectorPerformance
+from sectorperformance import refresh_sector_chart
 from dayTrendAlert import day_trend_alert_bp
 from stockAnalysis import stock_analysis_bp
 
@@ -161,6 +161,7 @@ def ScalpPattern():
 # This route is used for showing the sector behavior
 @app.route("/sectorPerformance")
 def SectorPerformanceGet():
+    refresh_sector_chart()
     image_buffer = altMgr.GetSectorChartFromDB()
     altMgr.send_photo_alert(image_buffer)
     chart_image_base64 = base64.b64encode(image_buffer.getvalue()).decode('utf-8')

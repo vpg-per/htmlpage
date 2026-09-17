@@ -161,7 +161,11 @@ def ScalpPattern():
 # This route is used for showing the sector behavior
 @app.route("/sectorPerformance")
 def SectorPerformanceGet():
-    refresh_sector_chart()
+    datarefresh = request.args.get('datarefresh', default='TRUE', type=str).upper()
+    print(datarefresh)
+    if datarefresh=="TRUE":
+        print("You are here too")
+        refresh_sector_chart()
     image_buffer = altMgr.GetSectorChartFromDB()
     altMgr.send_photo_alert(image_buffer)
     chart_image_base64 = base64.b64encode(image_buffer.getvalue()).decode('utf-8')

@@ -13,7 +13,6 @@ from sectorperformance import refresh_sector_chart
 from dayTrendAlert import day_trend_alert_bp
 from stockAnalysis import stock_analysis_bp
 
-
 app = Flask(__name__)
 app.register_blueprint(day_trend_alert_bp)
 app.register_blueprint(stock_analysis_bp)
@@ -164,12 +163,12 @@ def SectorPerformanceGet():
     datarefresh = request.args.get('datarefresh', default='TRUE', type=str).upper()
     print(datarefresh)
     if datarefresh=="TRUE":
-        print("You are here too")
         refresh_sector_chart()
     image_buffer = altMgr.GetSectorChartFromDB()
-    altMgr.send_photo_alert(image_buffer)
-    chart_image_base64 = base64.b64encode(image_buffer.getvalue()).decode('utf-8')
-    image_buffer.close()
+    if image_buffer is not None:
+        altMgr.send_photo_alert(image_buffer)
+        chart_image_base64 = base64.b64encode(image_buffer.getvalue()).decode('utf-8')
+        image_buffer.close()
 
     del image_buffer
     gc.collect()

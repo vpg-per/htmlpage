@@ -161,12 +161,14 @@ def ScalpPattern():
 @app.route("/sectorPerformance")
 def SectorPerformanceGet():
     datarefresh = request.args.get('datarefresh', default='TRUE', type=str).upper()
+    sendalert = request.args.get('sendalert', default='FALSE', type=str).upper()
     print(datarefresh)
     if datarefresh=="TRUE":
         refresh_sector_chart()
     image_buffer = altMgr.GetSectorChartFromDB()
     if image_buffer is not None:
-        altMgr.send_photo_alert(image_buffer)
+        if sendalert != "FALSE":
+            altMgr.send_photo_alert(image_buffer)
         chart_image_base64 = base64.b64encode(image_buffer.getvalue()).decode('utf-8')
         image_buffer.close()
 
